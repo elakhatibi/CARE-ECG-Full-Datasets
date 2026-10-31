@@ -1,0 +1,329 @@
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex)
+ restricted \write18 enabled.
+entering extended mode
+(./manuscript.tex
+LaTeX2e <2023-11-01> patch level 1
+L3 programming layer <2024-01-22>
+(/usr/share/texlive/texmf-dist/tex/latex/base/article.cls
+Document Class: article 2023/05/17 v1.4n Standard LaTeX document class
+(/usr/share/texlive/texmf-dist/tex/latex/base/size11.clo))
+(/usr/share/texlive/texmf-dist/tex/latex/geometry/geometry.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/keyval.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/iftex/ifvtex.sty
+(/usr/share/texlive/texmf-dist/tex/generic/iftex/iftex.sty)))
+(/usr/share/texlive/texmf-dist/tex/latex/base/fontenc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/base/inputenc.sty)
+(/usr/share/texmf/tex/latex/lm/lmodern.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/microtype/microtype.sty
+(/usr/share/texlive/texmf-dist/tex/latex/etoolbox/etoolbox.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/microtype/microtype-pdftex.def)
+(/usr/share/texlive/texmf-dist/tex/latex/microtype/microtype.cfg))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsmath.sty
+For additional information on amsmath, use the `?' option.
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amstext.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsgen.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsbsy.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/amsmath/amsopn.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amssymb.sty
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/amsfonts.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphicx.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/graphics.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/trig.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics-cfg/graphics.cfg)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics-def/pdftex.def)))
+(/usr/share/texlive/texmf-dist/tex/latex/booktabs/booktabs.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/tools/longtable.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/tools/array.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/tools/tabularx.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/float/float.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/caption/caption.sty
+(/usr/share/texlive/texmf-dist/tex/latex/caption/caption3.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/caption/ltcaption.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/enumitem/enumitem.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/xcolor/xcolor.sty
+(/usr/share/texlive/texmf-dist/tex/latex/graphics-cfg/color.cfg)
+(/usr/share/texlive/texmf-dist/tex/latex/graphics/mathcolor.ltx))
+(/usr/share/texlive/texmf-dist/tex/latex/fancyhdr/fancyhdr.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/listings/listings.sty
+(/usr/share/texlive/texmf-dist/tex/latex/listings/lstmisc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/listings/listings.cfg))
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/frontendlayer/tikz.sty
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/basiclayer/pgf.sty
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgfrcs.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfutil-common.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfutil-latex.def)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfrcs.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/pgf.revision.tex)))
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/basiclayer/pgfcore.sty
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/systemlayer/pgfsys.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsys.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfkeyslibraryfiltered
+.code.tex)) (/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgf.cfg)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-pdftex.def
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsys-common-pdf.de
+f)))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsyssoftpath.code.
+tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/systemlayer/pgfsysprotocol.code.
+tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcore.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathutil.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathparser.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.basic.code
+.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.trigonomet
+ric.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.random.cod
+e.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.comparison
+.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.base.code.
+tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.round.code
+.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.misc.code.
+tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfunctions.integerari
+thmetics.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathcalc.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmathfloat.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfint.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepoints.code.te
+x)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathconstruct.
+code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathusage.code
+.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorescopes.code.te
+x)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoregraphicstate.c
+ode.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransformation
+s.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorequick.code.tex
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreobjects.code.t
+ex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepathprocessing
+.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorearrows.code.te
+x)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreshade.code.tex
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreimage.code.tex
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoreexternal.code.
+tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorelayers.code.te
+x)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcoretransparency.c
+ode.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorepatterns.code.
+tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/basiclayer/pgfcorerdf.code.tex))
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/modules/pgfmoduleshapes.code.tex
+) (/usr/share/texlive/texmf-dist/tex/generic/pgf/modules/pgfmoduleplot.code.tex
+)
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-0-65
+.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/compatibility/pgfcomp-version-1-18
+.sty)) (/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgffor.sty
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/utilities/pgfkeys.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgfkeys.code.tex))
+(/usr/share/texlive/texmf-dist/tex/latex/pgf/math/pgfmath.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/math/pgfmath.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/utilities/pgffor.code.tex))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/tikz.code.tex
+
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibraryplothandlers
+.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/modules/pgfmodulematrix.code.tex
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarytopaths.code.tex)))
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.
+code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarypositioning.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibraryfit.code.tex)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarybackgrounds.code.tex)
+(/usr/share/texlive/texmf-dist/tex/latex/url/url.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/hyperref.sty
+(/usr/share/texlive/texmf-dist/tex/latex/kvsetkeys/kvsetkeys.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/kvdefinekeys/kvdefinekeys.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/pdfescape/pdfescape.sty
+(/usr/share/texlive/texmf-dist/tex/generic/ltxcmds/ltxcmds.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/pdftexcmds/pdftexcmds.sty
+(/usr/share/texlive/texmf-dist/tex/generic/infwarerr/infwarerr.sty)))
+(/usr/share/texlive/texmf-dist/tex/latex/hycolor/hycolor.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/auxhook/auxhook.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
+(/usr/share/texlive/texmf-dist/tex/latex/refcount/refcount.sty)
+(/usr/share/texlive/texmf-dist/tex/generic/gettitlestring/gettitlestring.sty
+(/usr/share/texlive/texmf-dist/tex/latex/kvoptions/kvoptions.sty)))
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/pd1enc.def)
+(/usr/share/texlive/texmf-dist/tex/generic/intcalc/intcalc.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/puenc.def)
+(/usr/share/texlive/texmf-dist/tex/generic/bitset/bitset.sty
+(/usr/share/texlive/texmf-dist/tex/generic/bigintcalc/bigintcalc.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/base/atbegshi-ltx.sty))
+(/usr/share/texlive/texmf-dist/tex/latex/hyperref/hpdftex.def
+(/usr/share/texlive/texmf-dist/tex/latex/base/atveryend-ltx.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/rerunfilecheck/rerunfilecheck.sty
+(/usr/share/texlive/texmf-dist/tex/generic/uniquecounter/uniquecounter.sty)))
+(/usr/share/texmf/tex/latex/lm/t1lmr.fd)
+(/usr/share/texlive/texmf-dist/tex/latex/l3backend/l3backend-pdftex.def)
+(./CARE_ECG_Detailed_Methodology_and_Results.aux)
+*geometry* driver: auto-detecting
+*geometry* detected driver: pdftex
+(/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-cmr.cfg)
+(/usr/share/texlive/texmf-dist/tex/context/base/mkii/supp-pdf.mkii
+[Loading MPS to PDF converter (version 2006.09.02).]
+) (/usr/share/texlive/texmf-dist/tex/latex/epstopdf-pkg/epstopdf-base.sty
+(/usr/share/texlive/texmf-dist/tex/latex/latexconfig/epstopdf-sys.cfg))
+(./CARE_ECG_Detailed_Methodology_and_Results.out)
+(./CARE_ECG_Detailed_Methodology_and_Results.out)
+(/usr/share/texmf/tex/latex/lm/ot1lmr.fd)
+(/usr/share/texmf/tex/latex/lm/omllmm.fd)
+(/usr/share/texmf/tex/latex/lm/omslmsy.fd)
+(/usr/share/texmf/tex/latex/lm/omxlmex.fd)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd)
+(/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-msa.cfg)
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd)
+(/usr/share/texlive/texmf-dist/tex/latex/microtype/mt-msb.cfg)
+(/usr/share/texmf/tex/latex/lm/t1lmtt.fd) [1{/var/lib/texmf/fonts/map/pdftex/up
+dmap/pdftex.map}{/usr/share/texmf/fonts/enc/dvips/lm/lm-ec.enc}] [1]
+(./CARE_ECG_Detailed_Methodology_and_Results.toc [2] [3] [4]) [5] [1]
+Underfull \hbox (badness 10000) in paragraph at lines 103--103
+[]|\T1/lmr/m/n/10 (+20) Fixed-candidate eval-u-a-
+
+Underfull \hbox (badness 2894) in paragraph at lines 103--103
+[]|\T1/lmr/m/n/10 (+20) Optimization and au-dit
+(./tables/cohorts.tex) [2{/usr/share/texmf/fonts/enc/dvips/lm/lm-mathsy.enc}{/u
+sr/share/texmf/fonts/enc/dvips/lm/lm-rm.enc}{/usr/share/texmf/fonts/enc/dvips/l
+m/lm-mathit.enc}] [3] (./tables/qa_tasks.tex) [4] [5{/usr/share/texmf/fonts/enc
+/dvips/lm/lm-mathex.enc}] [6] [7] [8] [9] [10] (./experiments_results.tex
+[11] [12] (./tables/fusion.tex) [13 <./figures/training.pdf>]
+(./tables/classification.tex) (./tables/classification_ci.tex)
+(./tables/paired.tex) [14 <./figures/stack_search.pdf>] [15 <./figures/system_c
+omparison.pdf>] (./tables/per_class.tex) (./tables/calibration.tex) [16 <./figu
+res/confusion.pdf>] [17 <./figures/per_class.pdf>] [18 <./figures/calibration.p
+df>] [19] (/usr/share/texmf/tex/latex/lm/ts1lmr.fd) [20{/usr/share/texmf/fonts/
+enc/dvips/lm/lm-ts1.enc}] [21] (./tables/security_heldout.tex) [22] [23 <./figu
+res/security.pdf>] (./tables/security_paired.tex) [24] (./adaptive_dpo.tex
+[25] [26] (./tables/adaptive_v2.tex) (./tables/adaptive_v2_paired.tex) [27 <./f
+igures/adaptive_v2.pdf>] [28] [29] [30] [31] (./tables/dpo_fit.tex)
+(./tables/dpo_validation.tex) [32] [33 <./figures/dpo_training.pdf>] [34])
+[35] [36] [37]) (./appendices.tex
+Underfull \hbox (badness 2529) in paragraph at lines 36--37
+[]|\T1/lmr/m/n/10.95 (+20) Retrieved-fact cov-er-age and citation/claim-
+
+Underfull \hbox (badness 10000) in paragraph at lines 43--43
+[]|$\T1/lmtt/m/n/10.95 src / care _ ecg / security / preferences .
+
+Underfull \hbox (badness 10000) in paragraph at lines 46--46
+[]|$\T1/lmtt/m/n/10.95 src / care _ ecg / security / evolution _
+[38] [39] (./tables/meta_candidates.tex) [40] (./tables/security_validation.tex
+) [41] (./tables/distortion_heldout.tex) [42]
+(./tables/security_momentum_validation.tex) [43]
+(/usr/share/texlive/texmf-dist/tex/latex/listings/lstlang1.sty)
+(/usr/share/texlive/texmf-dist/tex/latex/listings/lstlang1.sty) [44] [45]
+[46] [47] (./tables/provenance.tex
+Underfull \hbox (badness 10000) in paragraph at lines 6--6
+[]|$\T1/lmtt/m/n/8 artifacts / ptbxl -[] benchmark / stack -[] three -[] source
+ / locked _
+
+Underfull \hbox (badness 10000) in paragraph at lines 10--10
+[]|$\T1/lmtt/m/n/8 results / security -[] final -[] validation -[] c3 -[] b1 -[
+] b3 -[] s3 -[] 20261026 /
+
+Underfull \hbox (badness 10000) in paragraph at lines 11--11
+[]|$\T1/lmtt/m/n/8 results / security -[] final -[] heldout -[] c3 -[] b1 -[] b
+3 -[] s3 -[] 20261026 /
+
+Underfull \hbox (badness 10000) in paragraph at lines 12--12
+[]|$\T1/lmtt/m/n/8 results / security -[] mipgd -[] validation -[] 20261026 / s
+ecurity _
+) (./tables/new_provenance.tex
+Underfull \hbox (badness 10000) in paragraph at lines 5--5
+[]|$\T1/lmtt/m/n/8 results / security -[] adaptive -[] v2 -[] expanded -[] vali
+dation -[]
+
+Underfull \hbox (badness 10000) in paragraph at lines 6--6
+[]|$\T1/lmtt/m/n/8 results / security -[] adaptive -[] v2 -[] expanded -[] vali
+dation -[]
+
+Underfull \hbox (badness 10000) in paragraph at lines 7--7
+[]|$\T1/lmtt/m/n/8 artifacts / security -[] dpo -[] evolution -[] verified -[] 
+20261028 /
+
+Underfull \hbox (badness 10000) in paragraph at lines 8--8
+[]|$\T1/lmtt/m/n/8 results / security -[] dpo -[] final -[] binding -[] check -
+[] 20261028 / security _
+
+Underfull \hbox (badness 10000) in paragraph at lines 9--9
+[]|$\T1/lmtt/m/n/8 results / security -[] dpo -[] final -[] binding -[] check -
+[] 20261028 / security _
+
+Underfull \hbox (badness 10000) in paragraph at lines 10--10
+[]|$\T1/lmtt/m/n/8 artifacts / security -[] dpo -[] evolution -[] verified -[] 
+20261028 / round -[]
+
+Underfull \hbox (badness 10000) in paragraph at lines 11--11
+[]|$\T1/lmtt/m/n/8 artifacts / security -[] dpo -[] evolution -[] verified -[] 
+20261028 / round -[]
+) [48] [49]
+Underfull \hbox (badness 10000) in paragraph at lines 347--348
+[]\T1/lmr/m/n/10 (+20) Zaozzz/ECG-Expert-QA. Pub-lisher dataset repos-i-tory; p
+inned re-vi-sion
+
+Underfull \hbox (badness 1389) in paragraph at lines 347--348
+\T1/lmtt/m/n/10 4fcb46974eed422532772caa483a5e621f006ff1\T1/lmr/m/n/10 (+20) . 
+Lo-cal count au-dit uses that re-vi-sion, not a
+
+Underfull \hbox (badness 1028) in paragraph at lines 350--351
+[]\T1/lmr/m/n/10 (+20) N. Strodthoff and col-lab-o-ra-tors. \T1/lmr/m/it/10 (+2
+0) ecg_ptbxl_benchmarking\T1/lmr/m/n/10 (+20) : repos-i-tory as-so-ci-ated with
+ Deep
+
+Underfull \hbox (badness 1502) in paragraph at lines 350--351
+\T1/lmr/m/n/10 (+20) Learn-ing for ECG Anal-y-sis: Bench-marks and In-sights fr
+om PTB-XL. Legacy source re-
+
+Underfull \hbox (badness 2735) in paragraph at lines 350--351
+\T1/lmr/m/n/10 (+20) vi-sion \T1/lmtt/m/n/10 cdbf4e66d7e57d9b6a2657b6024716212b
+8d0afa\T1/lmr/m/n/10 (+20) . [][]$\T1/lmtt/m/n/10 https : / / github . com / he
+lme / ecg _ ptbxl _
+
+Underfull \hbox (badness 10000) in paragraph at lines 356--357
+[]\T1/lmr/m/n/10 (+20) Local ex-per-i-ment ev-i-dence. Clas-si-fi-ca-tion: \T1/
+lmtt/m/n/10 CARE_ECG_nextgen_run_metadata.json\T1/lmr/m/n/10 (+20) ,
+
+Underfull \hbox (badness 1231) in paragraph at lines 356--357
+\T1/lmtt/m/n/10 CARE_ECG_nextgen_locked_selection.json\T1/lmr/m/n/10 (+20) , an
+d aligned pre-dic-tion JSONL. Se-cu-rity: fi-nal
+) [50] (./CARE_ECG_Detailed_Methodology_and_Results.aux) )
+(see the transcript file for additional information)</usr/share/texmf/fonts/typ
+e1/public/lm/lmbx10.pfb></usr/share/texmf/fonts/type1/public/lm/lmbx12.pfb></us
+r/share/texmf/fonts/type1/public/lm/lmex10.pfb></usr/share/texmf/fonts/type1/pu
+blic/lm/lmmi10.pfb></usr/share/texmf/fonts/type1/public/lm/lmmi6.pfb></usr/shar
+e/texmf/fonts/type1/public/lm/lmmi7.pfb></usr/share/texmf/fonts/type1/public/lm
+/lmmi8.pfb></usr/share/texmf/fonts/type1/public/lm/lmr10.pfb></usr/share/texmf/
+fonts/type1/public/lm/lmr12.pfb></usr/share/texmf/fonts/type1/public/lm/lmr8.pf
+b></usr/share/texmf/fonts/type1/public/lm/lmr9.pfb></usr/share/texmf/fonts/type
+1/public/lm/lmri10.pfb></usr/share/texmf/fonts/type1/public/lm/lmsy10.pfb></usr
+/share/texmf/fonts/type1/public/lm/lmsy6.pfb></usr/share/texmf/fonts/type1/publ
+ic/lm/lmsy8.pfb></usr/share/texmf/fonts/type1/public/lm/lmtk10.pfb></usr/share/
+texmf/fonts/type1/public/lm/lmtt10.pfb></usr/share/texmf/fonts/type1/public/lm/
+lmtt8.pfb></usr/share/texmf/fonts/type1/public/lm/lmtt9.pfb></usr/share/texmf/f
+onts/type1/public/lm/lmtti10.pfb></usr/share/texlive/texmf-dist/fonts/type1/pub
+lic/amsfonts/symbols/msbm10.pfb>
+Output written on CARE_ECG_Detailed_Methodology_and_Results.pdf (56 pages, 7456
+08 bytes).
+Transcript written on CARE_ECG_Detailed_Methodology_and_Results.log.

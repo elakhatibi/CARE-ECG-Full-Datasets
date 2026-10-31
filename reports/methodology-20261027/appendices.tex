@@ -1,0 +1,280 @@
+\appendix
+\section{Notation and implementation map}
+\label{app:notation}
+\begin{longtable}{p{0.18\linewidth}p{0.74\linewidth}}
+\toprule Symbol & Meaning in this implementation\\\midrule\endhead
+$x,x'$ & Raw-mV and globally standardized multilead ECG, respectively.\\
+$C,T,N$ & Lead count, time samples per record, and number of records.\\
+$h,z,\mu,\sigma$ & Pooled encoder feature, stochastic latent sample, posterior mean, and posterior standard deviation.\\
+$\tilde z$ & Per-coordinate categorical state from training quantiles.\\
+$y,\hat y,y^*$ & Projected reference superclass, predicted class, and requested target.\\
+$p_{\mathrm{BN}}$ & Internal Bayesian-network posterior conditioned on latent states.\\
+$p_{\mathrm{neural}}$ & Internal supervised waveform classifier probabilities.\\
+$p_{\mathrm{stack}}$ & External locked stack probabilities from three aligned sources.\\
+$w_n,w_e$ & Internal neural-fusion and external-expert weights; both are 1 in the released diagnostic run.\\
+$\mathcal{S}_j$ & Empirically supported categorical states of latent coordinate $j$.\\
+$R,e,q$ & Retrieved facts, generated explanation, and query.\\
+$\delta,\mathcal{S}$ & Raw-mV waveform perturbation and its declared feasible set.\\
+$B,\kappa$ & Maximum complete-system attack submissions and targeted log-score confidence margin.\\
+OOF & Out-of-fold stacker predictions on grouped partitions of validation fold~9.\\
+ASR & Attack success rate for a specified outcome, conditioning rule, budget, and victim.\\
+\bottomrule
+\end{longtable}
+
+\begin{longtable}{p{0.43\linewidth}p{0.49\linewidth}}
+\toprule Source module & Main responsibility\\\midrule\endhead
+\code{src/care_ecg/data.py} & Lead orientation, finite repair, resampling, crop/pad, normalization, PTB-XL label preparation.\\
+\code{src/care_ecg/models.py} & Temporal backbones, VAE posterior/decoder, supervised classification and loss.\\
+\code{src/care_ecg/training.py} & Augmentation, optimization, early stopping, validation fusion and class biases.\\
+\code{src/care_ecg/discretization.py} & Training-quantile thresholds and categorical transformation.\\
+\code{src/care_ecg/causal.py} & Ordered K2/BDeu structure, CPTs, exact inference, drivers and paths.\\
+\code{src/care_ecg/counterfactual.py} & Exhaustive supported single-coordinate state edits and scoped result.\\
+\code{src/care_ecg/pipeline.py} & Training composition, deterministic batch encoding, agent orchestration, save/load.\\
+\code{src/care_ecg/agents.py} & History, diagnosis, response prompts, fallback, causal retrieval coordination.\\
+\code{src/care_ecg/retrieval.py} & TF-IDF/optional embeddings, enriched query, metadata scores, competing-class filter.\\
+\code{src/care_ecg/generation.py} & Deterministic template and optional local/API generator adapters.\\
+\code{src/care_ecg/verification.py} & Retrieved-fact coverage and citation/claim-support lexical checks.\\
+\code{src/care_ecg/ensemble.py} & Hash-authenticated legacy adapters, SCP features, grouped stacker and strict alignment.\\
+\code{src/care_ecg/finalization.py} & Frozen-source recomputation, offsets, final expert manifest.\\
+\code{src/care_ecg/metrics.py} & Categorical, Text-to-SCP, lexical grounding and wrong-diagnosis gate metrics.\\
+\code{src/care_ecg/reporting.py} & Workbook exports, comparison targets, reproduction attestation.\\
+\code{src/care_ecg/paper_data.py} & Versioned acquisition, locks, integrity checks and all-source indexing.\\
+\code{src/care_ecg/paper_inference.py} & Streaming all-record inference, WFDB units, QA linkage and text-only path.\\
+\code{src/care_ecg/security/} & Threat contracts, attacks, waveform constraints, defenses, endpoints, uncertainty and logs.\\
+\bottomrule
+\end{longtable}
+
+\section{Operational algorithms}
+\label{app:algorithms}
+The following pseudocode describes the implemented data flow. Its labels are software variables, not independently validated physiological mechanisms.
+
+\subsection{Fit the internal representation and graph}
+\begin{lstlisting}
+Input: train ECGs/labels, explicit validation ECGs/labels, frozen config
+1. Fit global mean/scale on train only; transform both splits.
+2. Train supervised temporal VAE with denoising augmentation and KL warm-up.
+3. Select early-stopping epoch on validation macro F1; restore weights.
+4. Encode training ECGs with posterior means, without stochastic sampling.
+5. Fit coordinate quantiles on training means; discretize training means.
+6. Learn ordered graph with K2/BDeu and declared prior-edge constraints.
+7. Estimate smoothed CPTs from training states and labels.
+8. Evaluate candidate neural/BN mixtures and class offsets on validation.
+9. Fit the configured retrieval index from the versioned knowledge documents.
+Output: weights, config, normalizer, discretizer, network, retrieval index,
+        training history and validation-selection diagnostics.
+\end{lstlisting}
+
+\subsection{Released diagnostic/report execution}
+\begin{lstlisting}
+Input: ECG batch, queries, optional history, aligned expert probabilities
+1. Apply saved preprocessing and normalization.
+2. Encode posterior mean and internal neural probabilities in one pass.
+3. Validate external rows, label order, probabilities, source and hashes.
+4. Blend external/internal neural probabilities using locked expert weight.
+5. Discretize mean; compute Bayesian and fused diagnosis posteriors.
+6. Select label, scoped sensitivity drivers and directed paths.
+7. If requested, search supported single-factor target-state edits.
+8. Choose latest supplied same-patient history or labeled latent surrogate.
+9. Enrich query; rank eligible knowledge; retain retrieved fact provenance.
+10. Build fact-tagged prompt and deterministic/generated draft.
+11. Check retrieved-fact coverage and unsupported claims.
+12. If needed, retry without causal fields; then use evidence-only fallback.
+13. Return probabilities, label, rationale, scopes, facts and audit states.
+14. Append expected label only for evaluation bookkeeping.
+\end{lstlisting}
+
+\subsection{Attack and count complete-system queries}
+\begin{lstlisting}
+Input: clean-correct case, target, constraint, frozen attack and budget B
+1. Bind clean snapshot, patient/record identity, verifier and raw-mV contract.
+2. For each allowed restart while query budget remains:
+   a. Initialize seeded random delta and project into the declared set.
+   b. Optimize the differentiable surrogate for 40 steps (locked study).
+   c. Keep the minimum-surrogate-loss candidate from this restart.
+   d. Submit it to the real waveform-callable pipeline; consume one query.
+   e. Record diagnosis, facts, text, release, constraints and distortion.
+   f. Assess independent preservation if a qualifying reviewer is supplied.
+3. Derive automated any-query target/untargeted/released-claim outcomes.
+4. Keep clinical-primary status separate from automated target outcomes.
+5. Write selected artifacts, full query trace, hash chain and terminal seal.
+Output: typed attack result and endpoint-specific evaluability.
+\end{lstlisting}
+
+\subsection{Bootstrap frozen classification outputs}
+\begin{lstlisting}
+Input: true/predicted labels and patient IDs for every eligible test ECG
+1. Aggregate a 5 x 5 confusion matrix for each distinct patient and system.
+2. Repeat 10,000 times with seed 20261027:
+   a. Sample the full number of patient IDs with replacement.
+   b. Sum all sampled patients' matrices, including multiplicities.
+   c. Recompute accuracy, macro precision/recall/F1 for each system.
+   d. Compute paired differences using the same sampled IDs.
+3. Report original full-cohort metrics and percentile 95% intervals.
+No model is refitted and no report or label is changed.
+\end{lstlisting}
+
+\section{Complete additional meta-model screening results}
+\label{app:candidates}
+\begin{table}[H]\centering\small
+\input{tables/meta_candidates.tex}
+\caption{All 17 additional validation-screened candidate sources. Standalone scores use fold-9 outputs; added-stack values are each candidate's best patient-grouped stacker OOF selection score. The released baseline is 69.876\% OOF macro F1. The candidate labels are the experiment's recorded names, not new fitted models.}
+\end{table}
+The closest added-stack candidate is \code{logit_C1_w0375} at approximately 69.82\% macro F1. This screening table uses the same fold-9 selection outcomes as the archived search. It is not a new ranking based on test labels. Individual comparisons are not adjusted for the number of models or hyperparameters tried.
+
+\section{Complete locked validation attack matrix}
+\label{app:securityvalidation}
+\begin{table}[H]\centering\scriptsize
+\resizebox{\linewidth}{!}{\input{tables/security_validation.tex}}
+\caption{Locked validation E1 results for the C3 configuration. Targeted ASR intervals use the saved 10,000-resample patient bootstrap. Each row is ten patients with three seeds. These rows were available during attack selection; they are not independent held-out estimates.}
+\end{table}
+The matrix is deliberately reported alongside held-out results. The apparent consistency of exact-target rates across attack families contrasts with varying untargeted outcomes and shows why ``attack success'' needs an explicit outcome definition. A target can fail while a different wrong diagnosis is still found.
+
+\section{Complete held-out distortion and query results}
+\label{app:distortion}
+\begin{table}[H]\centering\scriptsize
+\resizebox{\linewidth}{!}{\input{tables/distortion_heldout.tex}}
+\caption{Mean distortion of selected valid perturbations and total complete attack queries per held-out cell. PRD and SNR are averaged per selected waveform, so they should not be recomputed from a single ratio of the table's averaged norms. The selected candidate need not be the first successful or largest-distortion query.}
+\end{table}
+Each $B=1$ row uses 30 complete submissions and each $B=3$ row uses 90, totaling 960 attack submissions. The raw query schedule is separate from the 40-step gradient loops. All selected-constraint validity rates are 1.0, with no inference that a target-specific clinical finding has been preserved.
+
+\section{Exploratory momentum validation matrix}
+\label{app:momentum}
+\begin{table}[H]\centering\scriptsize
+\resizebox{\linewidth}{!}{\input{tables/security_momentum_validation.tex}}
+\caption{Separate momentum-decay-0.9 validation experiment. Each row has ten patients and three seeds. It is not a held-out replacement and does not share the earlier final study's historical code identity. Clinical primary evaluability remains absent.}
+\end{table}
+The momentum run's event verification reports a complete log with 1,398 records and 918 waveform artifacts, consistent with 888 attack queries plus 30 clean waveform evaluations. The lower query count than the earlier run does not by itself establish a more query-efficient clinical attack: the stopping path, automated outcomes, and primary eligibility have to be interpreted separately.
+
+\section{Replaying and extending the workflow}
+\label{app:replay}
+The following commands are a map to the existing CLI, not a claim that all stages were rerun for this PDF. Inputs and optional dependencies must be present. Full original-paper equivalence additionally requires author artifacts or a confirmed matching protocol that is currently unavailable.
+
+\subsection{Environment and eligible supervised cohort}
+\begin{lstlisting}[language=bash]
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[data,ensemble,reports,dev]'
+
+care-ecg prepare-ptbxl data/ptb-xl data/ptbxl-prepared \
+  --sampling-rate 100 --seconds 10 --normalization none
+
+care-ecg train data/ptbxl-prepared/train.npz \
+  artifacts/ptbxl-inception-validation \
+  --config config/ptbxl_inception.yaml --preprocessed \
+  --label-names NORM,MI,STTC,CD,HYP \
+  --validation-dataset data/ptbxl-prepared/validation.npz \
+  --knowledge-graph data/ptbxl-prepared/knowledge_graph.json
+\end{lstlisting}
+The exact external-source acquisition, hash authentication, SCP meta-model, grouped stacker selection, post-lock refit, and finalizer commands are documented in \code{scripts/README.md} and \code{REPRODUCIBILITY.md}. These steps depend on authenticated legacy probability arrays and weights; cloning the source repository alone does not supply them. Historical locks should be preserved when creating a new run rather than overwritten as if the old pre-evaluation provenance still applied.
+
+\subsection{Replaying released fixed probabilities}
+\begin{lstlisting}[language=bash]
+care-ecg predict artifacts/ptbxl-nextgen-final \
+  data/ptbxl-prepared/test.npz outputs/replay-test.jsonl \
+  --preprocessed --batch-size 64 \
+  --expert-probabilities \
+    artifacts/ptbxl-benchmark/stack-three-source/test_probabilities_nextgen_locked.npz \
+  --expert-weight 1.0 \
+  --expert-source nextgen-three-source-stacker
+
+care-ecg evaluate outputs/replay-test.jsonl \
+  --scp-aliases data/ptbxl-prepared/scp_aliases.json \
+  --scp-fuzzy-threshold 0.84
+\end{lstlisting}
+For an actual provenance replay, retain the original full expert-source hash string from the README and authenticate every required input against the lock. The shorter source label above is an illustrative CLI invocation, not a substitute for source authentication. Expected labels used for bookkeeping must remain outside prediction decisions.
+
+\subsection{All-source indexing and inference}
+\begin{lstlisting}[language=bash]
+care-ecg prepare-paper-data
+
+# Completed paper-count PTB-XL source index:
+care-ecg predict-paper artifacts/ptbxl-nextgen-final \
+  data/paper-prepared/ptbxl.jsonl data/ptb-xl-1.0.1 \
+  outputs/ptbxl-101-all-records.jsonl
+
+# Same waveform-callable path, filtered to a declared test fold:
+care-ecg predict-paper artifacts/ptbxl-nextgen-final \
+  data/paper-local-prepared/ptbxl.jsonl data/ptb-xl \
+  outputs/internal-waveform-fold10.jsonl --folds 10
+
+# Once MIMIC acquisition/indexing is complete:
+care-ecg answer-expert-qa artifacts/ptbxl-nextgen-final \
+  data/paper-prepared/expert-qa.jsonl outputs/qa-all.jsonl \
+  --mimic-index data/paper-prepared/mimic.jsonl \
+  --mimic-root data/mimic-iv-ecg-1.0
+\end{lstlisting}
+The first all-record waveform command includes training records. The second still uses the internal waveform model, so its probabilities need not match the cached external-stack headline even on the same fold. The QA command preserves references for adjudication and distinguishes linked-waveform and text-only cases; it does not produce a paper-comparable QA score automatically. Existing output files are not reused silently because full-corpus writers use exclusive creation.
+
+\subsection{New all-patient security study}
+\begin{lstlisting}[language=bash]
+care-ecg security-run artifacts/ptbxl-nextgen-final \
+  data/ptbxl-prepared/validation.npz outputs/security-all-validation \
+  --all-patients --records-per-patient all
+\end{lstlisting}
+This removes caps for a new study and retains all matching eligible ECGs, while preserving target eligibility and fold rules. It does not supply independent adult or preservation adjudication. A held-out extension must use an appropriate newly frozen validation lock and historical input identities; the archived small-cohort result should not be renamed after changing these settings.
+
+\subsection{Rebuilding this report}
+From the repository root, using the compatible scientific Python and local TeX installation:
+\begin{lstlisting}[language=bash]
+/usr/bin/python3 reports/methodology-20261027/build_evidence.py
+cd reports/methodology-20261027
+pdflatex -interaction=nonstopmode -halt-on-error \
+  -jobname=CARE_ECG_Detailed_Methodology_and_Results manuscript.tex
+pdflatex -interaction=nonstopmode -halt-on-error \
+  -jobname=CARE_ECG_Detailed_Methodology_and_Results manuscript.tex
+\end{lstlisting}
+The builder checks existing cohort/prediction alignment and metric consistency, writes aggregate JSON/CSV/TeX, and exports vector figures with raster previews. A fresh rebuild after a dataset manifest changes should be treated as a new status snapshot and checked against the prose. The manuscript is not an automatic claim generator for uncompleted experiments.
+
+\section{Evidence ledger and provenance}
+\label{app:provenance}
+The classification ledger consists of \code{results/CARE_ECG_nextgen_run_metadata.json}, the pre-inference selection lock, \code{outputs/ptbxl-nextgen-ensemble-test.jsonl}, the final artifact, and the aligned prepared archives. The prior-run and specialist JSONL files support paired reanalysis. Security evidence comes from the final C3 validation and held-out \code{security_results.json} files and their sealed event packages; momentum validation is a separate source. Acquisition status comes from \code{data/paper-prepared/manifest.json} and the local all-record manifest.
+
+The report builder explicitly verifies the saved classification model, stacker, selection-lock, and final-prediction digests against the original metadata. It checks source record alignment, labels, finite normalized probabilities, predicted argmax, no patient overlap, and agreement of the rebuilt metrics. It also checks that each security summary point matches the raw observation mean for its cell. It imports saved security integrity receipts; it does not independently rerun clinical adjudication or rehash every archived waveform.
+
+Full input digests and current Python-source digests are in the accompanying \code{evidence.json}. Historical code-tree identities embedded in security results remain distinct from the current source snapshot. The following key digests make the main numerical sources independently identifiable.
+\input{tables/provenance.tex}
+
+\section{Result-status checklist}
+\label{app:status}
+\begin{longtable}{p{0.50\linewidth}p{0.42\linewidth}}
+\toprule Item & Evidence status at report snapshot\\\midrule\endhead
+Eligible PTB-XL categorical fold-10 predictions & Complete: 2,158 ECGs / 1,877 patients.\\
+Released-stack aggregate metrics and class errors & Measured; independently recovered from frozen outputs.\\
+Patient-cluster classification intervals and paired differences & New retrospective fixed-prediction reanalysis; 10,000 resamples.\\
+Waveform-specialist improvement study & Complete; not promoted after one locked candidate evaluation.\\
+Template lexical report proxies & Measured; not clinical or paper-exact semantic outcomes.\\
+Longitudinal report improvement & Not evaluated in released classification run (history mode none).\\
+Physiological causal latent identification & Not established; anonymous factors and observational state edits.\\
+Expanded C3 validation and held-out attacks & Complete small-cohort E0/E1 automated study.\\
+Clinical incorrect-release primary endpoint & Not evaluable; independent eligibility/preservation evidence missing.\\
+Full-population adversarial study & Not completed; historical locked cohort capped at ten selected patients.\\
+Momentum attack extension & Validation-only exploratory evidence; no new held-out result.\\
+V2/V3 matched-coverage and E1b--E7 effects & Implemented APIs; no completed primary effect estimate in this report.\\
+PTB-XL~1.0.1 full source & Downloaded, verified and indexed: 21,837 ECGs / 18,885 patients.\\
+Local all-record PTB-XL source & Indexed: 21,799 ECGs / 18,869 patients, including unlabeled records.\\
+Released Expert-ECG-QA source & Indexed: 43,670 source rows / 11 files; 17,024 identifiable patients.\\
+MIMIC-IV-ECG full source & Acquisition pending in snapshot manifest.\\
+Full QA task-specific benchmark metrics & Not completed; released-row normalization and runner available.\\
+Original CARE-ECG exact reproduction & NOT REPRODUCED.\\
+\bottomrule
+\end{longtable}
+
+\clearpage
+\begin{thebibliography}{20}
+\addcontentsline{toc}{section}{References}
+\bibitem{care} E. Khatibi, Z. Wang, A. Sharma, K. Chakrabarty, S. Rahimi Moosavi, F. Firouzi, and A.-M. Rahmani.
+\emph{CARE-ECG: Causal Agent-based Reasoning for Explainable and Counterfactual ECG Interpretation}. arXiv:2604.10420, 2026. Original architecture and reference results; local supplied PDF reviewed alongside the repository. \url{https://arxiv.org/abs/2604.10420}.
+\bibitem{ptbxl} P. Wagner et al. \emph{PTB-XL, a large publicly available electrocardiography dataset}. Scientific Data 7, 154, 2020. \url{https://doi.org/10.1038/s41597-020-0495-6}.
+\bibitem{ptbxl_data} P. Wagner et al. \emph{PTB-XL}, version 1.0.3. PhysioNet, 2022. Release metadata and recommended folds. \url{https://physionet.org/content/ptb-xl/1.0.3/}.
+\bibitem{ptbxl_old} P. Wagner et al. \emph{PTB-XL}, version 1.0.1. PhysioNet. Acquisition version chosen for paper-count coverage, separately from the completed local supervised experiment. \url{https://physionet.org/content/ptb-xl/1.0.1/}.
+\bibitem{mimic} B. Gow et al. \emph{MIMIC-IV-ECG: Diagnostic Electrocardiogram Matched Subset}, version 1.0. PhysioNet, 2023. DOI:10.13026/4nqg-sb35. \url{https://physionet.org/content/mimic-iv-ecg/1.0/}.
+\bibitem{qa} X. Wang et al. \emph{ECG-Expert-QA: A Benchmark for Evaluating Medical Large Language Models in Heart Disease Diagnosis}. arXiv:2502.17475, 2025. \url{https://arxiv.org/abs/2502.17475}.
+\bibitem{qa_repo} Zaozzz/ECG-Expert-QA. Publisher dataset repository; pinned revision \code{4fcb46974eed422532772caa483a5e621f006ff1}. Local count audit uses that revision, not a mutable current branch. \url{https://github.com/Zaozzz/ECG-Expert-QA}.
+\bibitem{inception} H. Ismail Fawaz et al. \emph{InceptionTime: Finding AlexNet for Time Series Classification}. Data Mining and Knowledge Discovery, 2020; arXiv:1909.04939. The repository uses an adapted single backbone, not the original ensemble protocol. \url{https://arxiv.org/abs/1909.04939}.
+\bibitem{rag} P. Lewis et al. \emph{Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks}. NeurIPS, 2020; arXiv:2005.11401. \url{https://arxiv.org/abs/2005.11401}.
+\bibitem{benchmark} N. Strodthoff and collaborators. \emph{ecg\_ptbxl\_benchmarking}: repository associated with Deep Learning for ECG Analysis: Benchmarks and Insights from PTB-XL. Legacy source revision \code{cdbf4e66d7e57d9b6a2657b6024716212b8d0afa}. \url{https://github.com/helme/ecg_ptbxl_benchmarking}.
+\bibitem{pgd} A. Madry et al. \emph{Towards Deep Learning Models Resistant to Adversarial Attacks}. ICLR, 2018; arXiv:1706.06083. \url{https://arxiv.org/abs/1706.06083}.
+\bibitem{momentum} Y. Dong et al. \emph{Boosting Adversarial Attacks with Momentum}. CVPR, 2018; arXiv:1710.06081. \url{https://arxiv.org/abs/1710.06081}.
+\bibitem{repo} CARE-ECG independent implementation. Source, configuration, test, and acquisition repository. Published source snapshot \code{e98a5b0a2735f69a49c31e6fca2e624880376809}. \url{https://github.com/elakhatibi/CARE-ECG-Full-Datasets}.
+\bibitem{local} Local experiment evidence. Classification: \code{CARE_ECG_nextgen_run_metadata.json}, \code{CARE_ECG_nextgen_locked_selection.json}, and aligned prediction JSONL. Security: final C3 validation/held-out and momentum-validation result JSON. Full digests and report reanalysis are included in \code{evidence.json}; these local files are not implied to be included in the public code repository.
+\end{thebibliography}

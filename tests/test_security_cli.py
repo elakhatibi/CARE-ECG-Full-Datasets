@@ -374,6 +374,7 @@ class SecurityCLITests(unittest.TestCase):
 
     def test_validation_lock_binds_config_and_validation_result(self):
         from care_ecg.security.logging import AppendOnlySecurityLogger
+        from care_ecg.security.preferences import PreferencePolicy
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -383,10 +384,14 @@ class SecurityCLITests(unittest.TestCase):
             artifact_path.mkdir()
             (artifact_path / "model.bin").write_bytes(b"locked victim")
             config_path = root / "security.yaml"
+            policy_path = root / "verifier.json"
+            policy = PreferencePolicy("verifier", ["x"], ["release", "reject"], ["clean", "target"])
+            policy.save(policy_path)
             config_path.write_text(
                 "schema_version: care-ecg-security-config.v1\n"
                 "protocol:\n"
                 "  validation_folds: [9]\n"
+                f"  verifier_policy: {policy_path}\n"
                 f"  validation_dataset_sha256: {_sha256(dataset_path)}\n"
                 "attacks: {}\n"
                 "constraints: {}\nadmissibility: {}\nexport: {}\n",
@@ -410,6 +415,13 @@ class SecurityCLITests(unittest.TestCase):
                             "eligible_cases_used": 1,
                             "attacks": [],
                             "constraints": [],
+                            "preference_policies": {
+                                "verifier": {
+                                    "path": str(policy_path.resolve()),
+                                    "file_sha256": _sha256(policy_path),
+                                    "policy_sha256": policy.fingerprint(),
+                                }
+                            },
                         },
                         "artifacts": {
                             "path": str(artifact_path),
@@ -443,6 +455,20 @@ class SecurityCLITests(unittest.TestCase):
 
             verified = _validate_security_lock(lock_path, config_path)
             self.assertEqual(verified["validation_results_sha256"], _sha256(validation_path))
+            self.assertEqual(
+                verified["resolved_protocol"]["preference_policies"]["verifier"]["file_sha256"],
+                _sha256(policy_path),
+            )
+            loaded_report = json.loads(validation_path.read_text())
+            binding = loaded_report["protocol"].pop("preference_policies")
+            validation_path.write_text(json.dumps(loaded_report))
+            with self.assertRaisesRegex(ValueError, "bind all configured preference"):
+                _security_lock_payload(config_path, validation_path)
+            loaded_report["protocol"]["preference_policies"] = binding
+            validation_path.write_text(json.dumps(loaded_report))
+            policy.save(policy_path, metadata={"changed": True})
+            with self.assertRaisesRegex(ValueError, "Preference policy changed"):
+                _security_lock_payload(config_path, validation_path)
 
             config_path.write_text(config_path.read_text() + "# changed\n", encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "changed after validation"):

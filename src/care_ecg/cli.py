@@ -273,11 +273,13 @@ def _prepare_ptbxl(args: argparse.Namespace) -> int:
         from .paper_data import index_dataset
 
         manifest["full_corpus"] = index_dataset(
-            "ptbxl", Path(args.root), output / "all_records.jsonl",
+            "ptbxl",
+            Path(args.root),
+            output / "all_records.jsonl",
             sampling_rate=args.sampling_rate,
         )
-        manifest["excluded_from_superclass_training"] = (
-            manifest["full_corpus"]["records"] - sum(counts.values())
+        manifest["excluded_from_superclass_training"] = manifest["full_corpus"]["records"] - sum(
+            counts.values()
         )
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     (output / "scp_aliases.json").write_text(
@@ -648,9 +650,7 @@ def _security_cohort_cases(
     return cases
 
 
-def _limit_eligible_cases(
-    eligible: Sequence[Any], limit_per_target: int | None
-) -> tuple[Any, ...]:
+def _limit_eligible_cases(eligible: Sequence[Any], limit_per_target: int | None) -> tuple[Any, ...]:
     if limit_per_target is None:
         return tuple(eligible)
     if limit_per_target < 1:
@@ -724,6 +724,7 @@ def _security_attack_factory(
     attack_config: Mapping[str, Any],
     constraint: Any,
     matched_magnitudes: Mapping[int, float] | None = None,
+    preference_policy: Any | None = None,
 ):
     from .security.attacks import (
         F0RandomAttack,
@@ -741,6 +742,13 @@ def _security_attack_factory(
     common = dict(attack_config.get("common", {}))
     specific = dict(attack_config.get(name, {}))
     values = {**common, **specific}
+    if values.get("preference_policy"):
+        from .security.preferences import PreferencePolicy
+
+        if name != "f3_k3":
+            raise ValueError("Preference attack controllers are supported on f3_k3 only")
+        if preference_policy is None:
+            preference_policy = PreferencePolicy.load(values["preference_policy"])
     norm = "l2" if constraint.kind is ConstraintKind.S2 else "linf"
     epsilon_mv = float(getattr(constraint, "epsilon_mv", values.get("epsilon_mv", 0.01)))
     step_size_mv = float(values.get("step_size_mv", 0.001))
@@ -822,6 +830,18 @@ def _security_attack_factory(
             "f3_k2": KnowledgeLevel.K2,
             "f3_k3": KnowledgeLevel.K3,
         }[name]
+        if preference_policy is not None:
+            from .security.learned import DPOAdaptiveAttack
+
+            return DPOAdaptiveAttack(
+                preference_policy,
+                knowledge_level=knowledge,
+                diagnosis_weight=float(values.get("diagnosis_weight", 1.0)),
+                retrieval_weight=float(values.get("retrieval_weight", 1.0)),
+                verifier_weight=float(values.get("verifier_weight", 1.0)),
+                defense_weight=float(values.get("defense_weight", 0.0)),
+                **gradient,
+            )
         return F3AdaptiveAttack(
             knowledge_level=knowledge,
             diagnosis_weight=float(values.get("diagnosis_weight", 1.0)),
@@ -830,6 +850,9 @@ def _security_attack_factory(
             defense_weight=float(values.get("defense_weight", 0.0)),
             black_box_method=str(values.get("black_box_method", "nes")),
             black_box_parameterization=parameterization,
+            search_version=str(values.get("search_version", "legacy")),
+            adaptive_step_factor=float(values.get("adaptive_step_factor", 2.0)),
+            auxiliary_scale=float(values.get("auxiliary_scale", 0.1)),
             **gradient,
         )
 
@@ -882,6 +905,7 @@ def _security_victim_provider(
     *,
     query: str,
     defense: str,
+    preference_policy: Any | None = None,
 ):
     from .security.contracts import DefenseKind
     from .security.defenses import MeasurementAwareVerifier
@@ -894,11 +918,23 @@ def _security_victim_provider(
         evaluators[DefenseKind.V2] = MeasurementAwareVerifier(backend=NumpyMeasurementBackend())
 
     def provider(*, case: Any, **_: Any):
+        selected_evaluators = dict(evaluators)
+        surrogates = {}
+        if preference_policy is not None:
+            from .security.defenses import ShippedVerifier
+            from .security.learned import DPOVerifier
+
+            gate = DPOVerifier(
+                preference_policy, selected_evaluators.get(defense_kind, ShippedVerifier())
+            )
+            selected_evaluators[defense_kind] = gate
+            surrogates[defense_kind] = gate.surrogate
         return InternalCAREECGVictim(
             pipeline,
             query=query,
             patient_id=case.patient_id,
-            defense_evaluators=evaluators,
+            defense_evaluators=selected_evaluators,
+            defense_surrogates=surrogates,
         )
 
     return provider
@@ -1022,10 +1058,37 @@ def _security_lock_payload(
         "e0_report_correctness_endpoint",
         "clinical_preservation_endpoint",
         "f0_magnitude_calibration",
+        "preference_policies",
     )
     resolved_protocol = {
         key: report["protocol"].get(key) for key in frozen_fields if key in report["protocol"]
     }
+    expected_policy_paths = {
+        name: {
+            **security_config["attacks"].get("common", {}),
+            **security_config["attacks"].get(name, {}),
+        }.get("preference_policy")
+        for name in resolved_protocol.get("attacks", ())
+    }
+    expected_policy_paths["verifier"] = security_config["protocol"].get("verifier_policy")
+    expected_policy_paths = {name: path for name, path in expected_policy_paths.items() if path}
+    policy_bindings = resolved_protocol.get("preference_policies", {})
+    if not isinstance(policy_bindings, Mapping) or set(policy_bindings) != set(
+        expected_policy_paths
+    ):
+        raise ValueError("Validation results do not bind all configured preference policies")
+    if policy_bindings:
+        from .security.preferences import PreferencePolicy
+
+        for name, policy_path in expected_policy_paths.items():
+            policy = PreferencePolicy.load(policy_path)
+            binding = policy_bindings[name]
+            if (
+                binding.get("path") != str(Path(policy_path).resolve())
+                or binding.get("file_sha256") != policy.source_file_sha256
+                or binding.get("policy_sha256") != policy.fingerprint()
+            ):
+                raise ValueError("Preference policy changed before validation was locked")
     if "f0" in resolved_protocol.get("attacks", ()):
         calibration = resolved_protocol.get("f0_magnitude_calibration")
         if not isinstance(calibration, Mapping):
@@ -1895,6 +1958,42 @@ def _security_evaluate(args: argparse.Namespace) -> int:
         raise ValueError(f"Unknown security attacks: {unknown_attacks}")
     if unknown_constraints:
         raise ValueError(f"Unknown security constraints: {unknown_constraints}")
+    from .security.preferences import PreferencePolicy
+
+    loaded_attack_policies = {}
+    loaded_verifier_policy = None
+    policy_identities = {}
+    paths = {
+        name: {
+            **security_config["attacks"].get("common", {}),
+            **security_config["attacks"].get(name, {}),
+        }.get("preference_policy")
+        for name in attacks
+    }
+    paths["verifier"] = protocol.get("verifier_policy")
+    for name, policy_path in paths.items():
+        if not policy_path:
+            continue
+        if name not in {"verifier", "f3_k3"}:
+            raise ValueError("Preference attack controllers are supported on f3_k3 only")
+        policy = PreferencePolicy.load(policy_path)
+        expected_role = "verifier" if name == "verifier" else "attacker"
+        if policy.role != expected_role or policy.label_order != tuple(
+            pipeline.causal_model.label_names
+        ):
+            raise ValueError("Preference policy role/label order differs from this run")
+        bound_victim = policy.checkpoint_metadata.get("victim_model_tree_sha256")
+        if bound_victim is not None and bound_victim != artifact_identity["sha256"]:
+            raise ValueError("Preference policy was trained for a different victim artifact")
+        policy_identities[name] = {
+            "path": str(Path(policy_path).resolve()),
+            "file_sha256": policy.source_file_sha256,
+            "policy_sha256": policy.fingerprint(),
+        }
+        if name == "verifier":
+            loaded_verifier_policy = policy
+        else:
+            loaded_attack_policies[name] = policy
     if any(value < 1 for value in budgets):
         raise ValueError("Security query budgets must be positive")
     if (
@@ -1942,6 +2041,7 @@ def _security_evaluate(args: argparse.Namespace) -> int:
         pipeline,
         query=str(protocol.get("query", "Which diagnosis is most supported, and why?")),
         defense=defense,
+        preference_policy=loaded_verifier_policy,
     )
     admissibility = _security_admissibility(security_config["admissibility"], defense)
     eligible_limit = (
@@ -1966,6 +2066,8 @@ def _security_evaluate(args: argparse.Namespace) -> int:
         "e0_report_correctness_endpoint": ("exploratory_diagnosis_and_target_absence_heuristic"),
         "clinical_preservation_endpoint": "exploratory_local_delta_only",
     }
+    if policy_identities:
+        resolved_protocol["preference_policies"] = policy_identities
     f0_calibration: Mapping[str, Any] | None = None
     if "f0" in attacks and phase == "heldout":
         locked_protocol = validation_lock.get("resolved_protocol", {})
@@ -2050,6 +2152,7 @@ def _security_evaluate(args: argparse.Namespace) -> int:
                     if attack_name != "f0" or f0_calibration is None
                     else _f0_magnitudes_for_constraint(f0_calibration, constraint_name, budgets)
                 ),
+                preference_policy=loaded_attack_policies.get(attack_name),
             )
             print(
                 f"Running E1 {attack_name}/{constraint_name} on {len(eligible)} eligible cases",
@@ -2360,15 +2463,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional deterministic candidate cap for development or smoke runs",
     )
     security.add_argument(
-        "--max-eligible-per-target", type=int,
+        "--max-eligible-per-target",
+        type=int,
         help="optional cap on eligible patients per target; null config means all",
     )
     security.add_argument(
-        "--all-patients", action="store_true",
+        "--all-patients",
+        action="store_true",
         help="remove configured candidate and eligible patient caps",
     )
     security.add_argument(
-        "--records-per-patient", choices=("first", "all"),
+        "--records-per-patient",
+        choices=("first", "all"),
         help="retain every ECG per patient or use the first matching ECG",
     )
     security.add_argument(
@@ -2406,6 +2512,10 @@ def build_parser() -> argparse.ArgumentParser:
     security_verify.add_argument("--waveform-dir")
     security_verify.set_defaults(func=_security_verify_log)
 
+    from .security.evolution_cli import register_parser as register_evolution_parser
+
+    register_evolution_parser(subparsers)
+
     from .paper_data import PAPER_DATASETS, prepare_paper_data
     from .paper_inference import answer_qa_index, predict_waveform_index
 
@@ -2414,8 +2524,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     paper.add_argument("--data-root", default="data")
     paper.add_argument("--output", default="data/paper-prepared")
-    paper.add_argument("--datasets", nargs="+", choices=tuple(PAPER_DATASETS),
-                       default=list(PAPER_DATASETS))
+    paper.add_argument(
+        "--datasets", nargs="+", choices=tuple(PAPER_DATASETS), default=list(PAPER_DATASETS)
+    )
     paper.add_argument("--download", action=argparse.BooleanOptionalAction, default=True)
     paper.add_argument("--sampling-rate", type=int, choices=(100, 500), default=500)
     paper.add_argument("--ptbxl-root", help="use an existing extracted PTB-XL release")
@@ -2431,8 +2542,13 @@ def build_parser() -> argparse.ArgumentParser:
     stream.add_argument("root", help="extracted waveform dataset directory")
     stream.add_argument("output", help="new output JSONL file")
     stream.add_argument("--batch-size", type=int, default=64)
-    stream.add_argument("--folds", nargs="+", type=int, choices=range(1, 11),
-                        help="optional PTB-XL fold filter; omitted means every source record")
+    stream.add_argument(
+        "--folds",
+        nargs="+",
+        type=int,
+        choices=range(1, 11),
+        help="optional PTB-XL fold filter; omitted means every source record",
+    )
     stream.add_argument("--query", default="Which diagnosis is most supported, and why?")
     stream.add_argument("--generator", choices=("template", "openai", "huggingface"))
     stream.add_argument("--model")

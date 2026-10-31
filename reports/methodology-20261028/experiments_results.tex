@@ -1,0 +1,290 @@
+\section{Experimental design and statistical analysis}
+\label{sec:experiments}
+\subsection{Completed classification protocol}
+The primary categorical outcome is macro F1 over the five fixed classes. Accuracy, macro precision, and macro recall are reported alongside it, without substituting one for another after observing the results. Base-model fitting uses the eligible training folds. Validation controls neural early stopping, internal mixture and bias selection, source screening, stacker settings, and specialist policy selection. Normalization, quantile thresholds, and the Bayesian network are fitted on the training set alone. The explicit official validation archive avoids the generic CLI's fallback record-level random holdout, which would require additional patient-group safeguards for longitudinal data.
+
+The fixed-candidate run processes every eligible prepared fold-10 record with encoder batch size 64 and deterministic latent means. There are no saved prediction exceptions; all 2,158 unique record IDs are aligned exactly to the prepared split. Each report includes the model probabilities, selected diagnosis, continuous and categorical latent states, drivers, paths, facts, verifier scores, fallback and abstention status, and source provenance. The record-keyed external probabilities are supplied with expert weight 1.0. No current full-corpus download is used to enlarge or alter these historical evaluation labels.
+
+For each class $c$, define true positives $TP_c$, false positives $FP_c$, and false negatives $FN_c$. The categorical measures are
+\begin{align}
+\mathrm{Acc}&=\frac{1}{N}\sum_i\mathbb{1}(\hat y_i=y_i),\\
+P_{\mathrm{macro}}&=\frac{1}{5}\sum_c\frac{TP_c}{TP_c+FP_c},\qquad
+R_{\mathrm{macro}}=\frac{1}{5}\sum_c\frac{TP_c}{TP_c+FN_c},\\
+F1_{\mathrm{macro}}&=\frac{1}{5}\sum_c\frac{2P_cR_c}{P_c+R_c}.
+\end{align}
+Zero denominators contribute zero. Macro F1 is the mean of class F1 values; it is not generally the harmonic mean of macro precision and macro recall. All five classes occur in this test cohort. The report rebuilds the confusion matrix from saved predicted and expected labels and verifies that it recovers the archived aggregate values.
+
+\subsection{Text-to-SCP protocol}
+The mapper detects aliases and SCP codes, handles negation, and applies the declared fuzzy threshold 0.84. Its primary label is the first non-negated mapped mention. Mapping coverage and a separately labeled any-mention sensitivity measure are available. In the current deterministic reports, the supplied diagnosis is placed first and exactly one superclass is mapped per report. Therefore first-mention categorical accuracy, precision, recall, and F1 are identical to direct classification.
+
+The permissive any-mention quantities are not alternative macro-classification metrics. They average per-report hit/precision/recall/F1 values using the set of mentioned codes. In this run there is one mapped code per report, so all four any-mention averages equal the hit rate 0.7683, whereas primary macro F1 remains 0.6825. A manuscript must not report 0.7683 as the primary five-class macro F1. This distinction matters even more when a free-form report lists multiple diagnoses.
+
+\subsection{Retrospective patient-cluster bootstrap}
+The report adds uncertainty to the frozen predictions, without retraining or selecting models. The 2,158 test ECGs belong to 1,877 distinct patients. For each of 10,000 bootstrap samples, 1,877 patients are sampled with replacement; all ECGs from each sampled patient are retained with the patient's multiplicity. A five-by-five confusion matrix is reconstructed and each metric recomputed. Percentile intervals use the 2.5th and 97.5th percentiles; the fixed analysis seed is 20261027.
+
+This targets record-weighted performance while preserving within-patient dependence. It differs from independently resampling ECGs and from giving each patient equal weight in the point estimator. The same patient multiplicities are used for paired differences between systems. The analysis quantifies sampling uncertainty conditional on the fixed predictions. It excludes model refitting, hyperparameter-search uncertainty, original-paper protocol differences, prior test exposure, and external-site shift. All intervals are nominal pointwise intervals; no family-wise adjustment is made. They are a retrospective analysis of existing artifacts, not a preregistered confirmatory study.
+
+\subsection{Confidence and report measures}
+Confidence is the largest class probability. Log loss averages $-\log p_{i,y_i}$; the multiclass Brier score averages $\sum_c(p_{ic}-\mathbb{1}[y_i=c])^2$ without division by class count. ECE uses 15 equal-width confidence bins:
+\begin{equation}
+\mathrm{ECE}=\sum_b\frac{|B_b|}{N}\left|\mathrm{Acc}(B_b)-\overline p_{\max}(B_b)\right|.
+\end{equation}
+Selective risk sorts records by confidence and plots error among retained records. The 80\%-coverage result is a descriptive operating point on the test outputs, not a validated deployment threshold or evidence of safe abstention.
+
+Local report measures are operational rather than clinical. CRC is the fraction of returned driver names mentioned in the text, with zero for no drivers. Groundedness is one minus unsupported-claim rate. Context relevance is lexical cosine between response and query; the local semantic-relevance proxy is lexical cosine between response and concatenated evidence. These use token-frequency vectors, not an independent semantic or clinical adjudicator. Attribution availability is reported for both the Bayesian component and the actual fused posterior. Finally, wrong-diagnosis pass rate asks how often the lexical gate passes a record whose categorical diagnosis is wrong.
+
+\section{Classification, calibration, and report results}
+\label{sec:results}
+\subsection{Training dynamics and validation selection}
+Figure~\ref{fig:training} shows the saved training and validation trajectories. The reported internal-model raw fold-9 macro F1 is 0.6511 at the selected epoch. Validation chooses neural mixture weight 1.0 over the Bayesian posterior, and later class-bias calibration raises this internal validation F1 to 0.6694. This calibration optimizes decision metrics on the same validation set; it is not a separately measured probability-calibration improvement. The final released stack uses zero post-selection class offsets rather than inheriting these internal calibration biases.
+
+\fig{training}{1}{Saved waveform-model training trajectories. The dashed line marks restored epoch 12. Training uses augmentation and stochastic latent samples, whereas validation uses unaugmented inputs and posterior means. Reconstruction MSE is in globally standardized units.}
+
+\begin{table}[htbp]\centering\small
+\input{tables/fusion.tex}
+\caption{Internal Bayesian/neural fusion candidates on fold~9 before class-bias calibration. Selection is by macro F1. These are validation measurements, not independent ablations on an untouched test set.}\label{tab:fusion}\end{table}
+
+Table~\ref{tab:fusion} makes a central architectural result explicit: the pure Bayesian component has validation macro F1 0.5345, and the best tested mixture places all diagnosis weight on the neural head. Adding the causal representation or graph therefore cannot be credited with the released classification improvement without a different controlled experiment. The saved graph has 65 variables and 179 edges, with three direct diagnosis parents, $z_{39}$, $z_{54}$, and $z_{55}$. The saved knowledge index has 54 documents. These counts establish the deployed artifact's structure, not causal identification or corpus adequacy.
+
+The selected three-source stack reaches fold-9 accuracy 0.7628, macro precision 0.7040, macro recall 0.6952, and macro F1 0.6988. The recorded grid contains 20 combinations: four regularization coefficients and five class-weight exponents. Figure~\ref{fig:stack_search} displays this validation search. Adding the internal InceptionTime probabilities as a fourth source reduces the selected OOF F1 to 0.6861, so the internal classifier is retained for representations and reports rather than included in the released diagnostic stack.
+
+\fig{stack_search}{0.79}{Fold-9 stacker hyperparameter search over the three fixed probability sources. These values select the final settings; the maximum should not be interpreted as a nested-validation estimate.}
+
+Seventeen further meta-model candidates, including histogram gradient boosting variants, tree ensembles, logistic models, an MLP, and LightGBM variants, were evaluated on validation outputs. None exceeded the chosen stack's OOF macro F1. The complete candidate-level comparison is in Appendix~\ref{app:candidates}. These results show which available alternatives were screened; they do not establish that no other architecture could improve the task.
+
+\subsection{Fixed-candidate fold-10 performance}
+Table~\ref{tab:classification} compares the released system with the prior repository run and the unpromoted specialist. The released stack correctly classifies 1,658 of 2,158 ECGs, leaving 500 errors. Table~\ref{tab:classification_ci} adds the patient-cluster intervals. The point estimates exactly reproduce the saved metadata and final workbook.
+
+\begin{table}[htbp]\centering\small
+\input{tables/classification.tex}
+\caption{Completed fixed-candidate results on the same eligible fold-10 cohort. Values are percentages. The specialist was evaluated once after its own lock and was not promoted.}\label{tab:classification}\end{table}
+
+\begin{table}[htbp]\centering\small
+\input{tables/classification_ci.tex}
+\caption{Retrospective 10,000-resample patient-cluster percentile intervals for the released stack. They account for repeated ECGs within patients, conditional on fixed predictions.}\label{tab:classification_ci}\end{table}
+
+\fig{system_comparison}{0.95}{System-level comparison with patient-cluster 95\% intervals. Paired comparisons use the same resampled patients for each system and are more informative than visual overlap of these marginal intervals.}
+
+\begin{table}[htbp]\centering\small
+\resizebox{\linewidth}{!}{\input{tables/paired.tex}}
+\caption{Retrospective paired differences of the released stack against each comparator, with patient-cluster 95\% intervals. Units are percentage points (pp), not relative percent improvement.}\label{tab:paired}\end{table}
+
+Relative to the previous run, the released stack increases accuracy by 3.34~pp and macro F1 by 5.71~pp. The corresponding paired intervals are $[1.93,4.72]$ and $[3.34,8.13]$~pp. This is evidence of better performance on these archived test cases conditional on the development history; it does not remove the disclosed prior test exposure. Relative to the specialist, the released macro-F1 advantage is only 0.19~pp with interval $[-0.82,1.33]$~pp, offering little basis for a broad superiority claim.
+
+\subsection{Per-class behavior and error structure}
+\begin{table}[htbp]\centering\small
+\input{tables/per_class.tex}
+\caption{Released-stack class-specific results. Support is the number of reference ECGs; predicted is the number assigned that class. P, R, and F1 are percentages.}\label{tab:perclass}\end{table}
+
+\fig{confusion}{1}{Released-stack confusion matrix. Rows are projected reference classes and columns are predicted classes. The right panel normalizes each row so that its diagonal represents class recall.}
+\fig{per_class}{0.94}{Class-specific precision, recall, and F1. NORM performs best; HYP is the principal weakness in the macro average.}
+
+NORM has 814 correct ECGs among 932 references, with precision 84.97\%, recall 87.34\%, and F1 86.14\%. STTC has F1 73.73\%; MI and CD have F1 near 69.5--69.7\%. HYP has only 69 reference ECGs, 28 correct predictions, recall 40.58\%, and F1 42.11\%. Its 41 errors include 19 assignments to NORM and 13 to STTC. This class is a concrete target for future model development, but no new tuning on these test errors is performed here.
+
+The largest individual error flow is MI to STTC (55 ECGs), followed by MI to NORM (48), STTC to MI (45), and CD to NORM (45). There are 144 abnormal-reference ECGs assigned NORM in the projected task. These counts expose a failure mode obscured by aggregate accuracy. They are errors relative to the declared single-label labels, not a clinician-adjudicated measure of missed disease or risk. Multiple SCP findings may coexist in the original record; a confusion between projected categories can reflect both model limitations and the categorical projection.
+
+\subsection{Probability confidence and selective prediction}
+\begin{table}[htbp]\centering\small
+\input{tables/calibration.tex}
+\caption{Confidence diagnostics independently recovered from the saved released probability vectors. Brier uses a sum across the five classes. ECE is on the 0--1 probability scale.}\label{tab:calibration}\end{table}
+
+Mean maximum confidence is 0.7011 while accuracy is 0.7683, a signed gap of $-0.0672$. This indicates lower average confidence than correctness on the aggregate sample; it does not prove calibration within each class or confidence range. ECE is 0.0685, log loss 0.6464, and multiclass Brier 0.3418. The reliability diagram in Figure~\ref{fig:calibration} shows the bin-wise behavior, with larger markers denoting more records.
+
+Retaining the top 1,727 records by confidence, approximately 80\% coverage, gives accuracy 82.86\%. Discarding the least confident records therefore concentrates correct predictions, but the retained set still has errors and the threshold is not prospectively validated. The current released template does not abstain on these confidence grounds; the selective-risk curve is an offline descriptive analysis.
+
+\fig{calibration}{1}{Reliability and confidence-ranked selective risk for frozen fold-10 outputs. The dashed reliability diagonal indicates perfect bin calibration. Curve inspection or the 80\%-coverage point must not be used to claim a validated clinical rejection policy.}
+
+\subsection{Waveform-specialist improvement experiment}
+A separate experiment adds five one-versus-rest histogram gradient boosting specialists. Their 260 inputs comprise 252 deterministic waveform summaries plus age, sex, height, weight, and four missingness indicators. The spectral features include six normalized real-FFT band powers with DC excluded from both numerator and denominator. Base specialists fit folds~1--8; validation fold~9 selects the blend, transform, offsets, and alternate HYP weighting. A total of 56,250 policies are searched; 15 satisfy the declared requirement of improving both validation macro recall and macro F1, and none meets all paper numeric targets.
+
+The selected policy uses the alternate HYP weight 0.5 family, raw transformation, blend coefficient 0.05, and class offsets $(0,0.15,0.15,0.15,0)$ in fixed label order. After a lock and folds-1--9 refit, the candidate is evaluated once on fold~10. Table~\ref{tab:specialist} shows why validation success does not justify automatic promotion.
+
+\begin{table}[htbp]\centering\small
+\begin{tabular}{llrrrr}\toprule
+Split & System & Acc. & Macro P & Macro R & Macro F1\\\midrule
+Fold 9 & Released baseline OOF & 76.28 & 70.40 & 69.52 & 69.88\\
+Fold 9 & Selected specialist & 76.56 & 71.59 & 69.61 & 70.38\\
+Fold 10 & Released baseline & 76.83 & 68.87 & 67.74 & 68.25\\
+Fold 10 & Selected specialist & 76.97 & 68.88 & 67.47 & 68.06\\\bottomrule
+\end{tabular}
+\caption{Specialist search and sealed candidate evaluation. Values are percentages. Fold-9 entries are selection estimates; the specialist is not the released system.}\label{tab:specialist}\end{table}
+
+Validation macro F1 increases by 0.506~pp but test macro F1 falls by 0.186~pp and macro recall falls by 0.272~pp. Test accuracy rises slightly, illustrating how class trade-offs can improve one metric while worsening the selection objective. The candidate is recorded as not promoted and no post-test tuning is performed. The large search and small improvement also motivate nested validation or a fresh test cohort for any subsequent specialist development.
+
+\subsection{Evidence checks and causal attribution availability}
+The saved local proxies are CRC~1.0, groundedness~1.0, HR~0.0, unsupported-claim rate~0.0, context relevance~0.2767, and lexical semantic relevance~0.8268. Each report has three drivers and five retrieved facts. There are no fallback or abstention events in the 2,158-record run, and every history mode is none. Consequently, the experiment does not empirically test longitudinal history use, fallback recovery, or prospective abstention effectiveness.
+
+Component attribution availability is 1.0; fused attribution availability is 0.0. The former means the internal Bayesian component supplies nonzero sensitivity drivers. The latter means those drivers do not causally account for the diagnostic stack's probabilities. CRC~1.0 measures inclusion of the component driver names in the deterministic text; it cannot be compared directly with an original-paper causal-coverage target for the final diagnosis.
+
+All 500 wrong diagnoses pass the local report gate. The wrong-diagnosis pass rate is therefore 100\%, alongside a 100\% overall pass rate. This is a direct empirical demonstration that repeating retrieved evidence and avoiding unsupported sentence additions are different from choosing the correct diagnosis. Perfect lexical scores should be read as a property of the template and checker combination, not evidence of perfect clinical grounding or LLM factuality.
+
+\subsection{Comparison with original-paper targets}
+\begin{table}[htbp]\centering\small
+\begin{tabular}{lrrrl}\toprule
+Metric & Repository & Paper LLaMA & Difference & Protocol equivalence\\\midrule
+Accuracy & 76.83 & 70.00 & +6.83 pp & Not established\\
+Macro precision & 68.87 & 68.00 & +0.87 pp & Not established\\
+Macro recall & 67.74 & 72.00 & $-4.26$ pp & Not established\\
+Macro F1 & 68.25 & 70.00 & $-1.75$ pp & Not established\\\bottomrule
+\end{tabular}
+\caption{Numerical reference to the original CARE-ECG LLaMA PTB-XL table~\cite{care}. Different artifacts, label projection, report generator, and mapping/evaluator details prevent a like-for-like claim.}\label{tab:papercomparison}\end{table}
+
+Accuracy and precision exceed the reference point targets numerically, while recall and macro F1 do not. The macro-F1 sampling interval includes 70\%, but an interval covering a published point estimate cannot repair protocol differences or establish equivalence. The original paper maps free-form LLaMA-generated text to SCP labels; these deterministic reports state the stack's diagnosis first. The repository also documents discrepancies between some original-paper main and ablation tables and the absence of exact evaluator artifacts. Accordingly, reproduction status remains \textbf{NOT REPRODUCED}. This conclusion is methodological, not a rounding decision.
+
+\section{Adaptive security methodology}
+\label{sec:securitymethods}
+\subsection{Victim, target, and endpoint hierarchy}
+The security package treats an adversary's waveform $x+\delta$ as input to a full callable pipeline. A submission recomputes encoder output, diagnosis, retrieval, report, and release decision. The victim is explicitly \code{internal_care_without_external_expert}. The historical record-keyed external scores used for the classification headline are not recomputed and are excluded. The experiment does not establish robustness of the released three-source stack.
+
+The locked target T1 selects clean MI-labeled cases and tries to induce NORM and the released false-normal claim ``normal ECG,'' an omission target. A clinically meaningful incorrect release would require all of: a valid perturbation, a released target claim, clean eligibility established independently, and target-specific evidence that baseline findings remain preserved for the same patient and record. The local signal-delta checker and diagnosis/claim heuristic do not supply that independent review. Prepared NPZ files also lack the age metadata required to establish adult-only primary eligibility. The clinical primary endpoint is therefore \emph{not evaluable}, rather than a measured zero attack-success rate.
+
+Automated nonclinical endpoints remain computable:
+\begin{itemize}
+\item \textbf{Targeted diagnosis ASR:} on clean-correct cases, at least one constraint-valid submitted query predicts the requested NORM target.
+\item \textbf{Untargeted diagnosis ASR:} at least one valid query predicts any label other than the clean reference MI.
+\item \textbf{Released-target-claim ASR:} at least one valid query is released and contains the target claim, as determined by the configured automated extractor.
+\item \textbf{Robust accuracy:} the clean prediction is correct and no valid submitted query misclassifies the record. It is not simply accuracy of the selected final candidate.
+\end{itemize}
+These events use the complete query trace. Invalid or rejected submissions consume budget; surrogate objective success alone never counts as a complete-system success.
+
+\subsection{Attack families and optimization}
+The implemented attack inventory includes constraint-native random controls F0, white-box projected gradient descent F1, counterfactual-guided F1-CF, black-box NES/SimBA/Square variants F2, and adaptive decision/grey-box/verifier-aware F3 modes K1/K2/K3. The primary expanded locked study uses only F1 PGD, F1-CF, F3 K2, and F3 K3. Existence of additional classes in source is not evidence that they were evaluated at this study's cohort size.
+
+For targeted gradient attacks, the minimized diagnostic margin is
+\begin{equation}
+\mathcal{L}_{\mathrm{diag}}=\max\left(\max_{c\ne y^*}\log p_c(x+\delta)-\log p_{y^*}(x+\delta)+\kappa,\,0\right),
+\end{equation}
+with locked confidence margin $\kappa=3$. PGD uses $x_{t+1}=\Pi_{\mathcal S}(x_t-\alpha\operatorname{sign}\nabla\mathcal L)$ for the $L_\infty$ direction, with step size 0.002~mV, amplitude budget 0.02~mV, 40 steps, and seeded random starts. This follows the projected-adversary framework~\cite{pgd}; it is a targeted evaluation and not adversarial training.
+
+F1-CF adds a loss that pushes one clean counterfactual-guidance coordinate into the interior of its requested quantile bin, with latent weight 1.0 and margin 0.001. F3 combines diagnostic, target-evidence retrieval, verifier, and optional defense/latent terms. The locked K2 and K3 settings use diagnosis/retrieval/verifier weights 1.0 each and defense weight zero. Smooth bin memberships and retrieval surrogates supply gradients through discrete operations. The actual hard pipeline remains the outcome oracle. Under this V1 configuration, K2 and K3 share many objective terms; their labels alone do not ensure distinct or stronger measured behavior.
+
+The query schedule is \emph{one minimum-surrogate-loss candidate per restart}. Budget $B=1$ allows one restart submission and $B=3$ up to three. Forty gradient steps inside a restart do not each consume a complete-system query. This accounting enables separate reporting of optimization work and expensive pipeline calls; it must not be confused with a strict one-or-three-gradient-evaluation adversary. The configured stop rule and clinical-primary eligibility also mean an automated target hit need not imply that the primary success stopping condition was met.
+
+The later momentum experiment sets decay $\mu=0.9$ and accumulates normalized gradient direction before the PGD step, following momentum iterative attack principles~\cite{momentum}. It is a separate validation-only exploratory run with its own code identity, not a modification of the earlier locked held-out result.
+
+\subsection{Waveform constraints and physiological admissibility}
+All norms and distortions use raw mV, before the stored standardizer. The implemented constraint sets include:
+\begin{description}[leftmargin=18pt,style=nextline]
+\item[$\mathcal S_\infty$.] $\max_{c,t}|\delta_{ct}|\leq0.02$~mV in the locked study. This is a per-sample amplitude bound, not a clinical-preservation criterion.
+\item[$\mathcal S_2$.] A global waveform $L_2$ constraint with norm-native projection. Implemented, but absent from the expanded locked matrix.
+\item[$\mathcal S_{\mathrm{spec}}$.] The same amplitude bound, per-lead high-frequency perturbation-energy ratio at frequencies above 40~Hz of at most 0.05, and maximum adjacent-sample perturbation change 0.01~mV. At 100~Hz, Nyquist is 50~Hz. Projection attenuates high-frequency FFT coefficients and rescales for amplitude and slew. Constraints apply to $\delta$, not the clean ECG's frequency content or slope.
+\item[$\mathcal S_{\mathrm{phys}}$.] Clean-conditioned P/QRS/T amplitude and timing changes, baseline drift, and RR jitter, using multilead R-peak consensus and lead-specific morphology/polarity. A deterministic nominal-RR fallback handles insufficient beat evidence. Implemented, but absent from the expanded locked matrix; its parameterization does not independently prove retained clinical findings.
+\end{description}
+
+The local admissibility checker extracts heart rate, rhythm irregularity, PR, QRS, QTc, and ST-deviation summaries with a separate NumPy/SciPy path. Its result is marked exploratory without target-specific preservation references. Passing amplitude, spectral, or local measurement tolerances cannot substitute for independent review that MI evidence was still present and that a ``normal'' report is clinically false.
+
+\subsection{Defenses, experiment APIs, and audit log}
+V1 is the shipped report verifier; V2 adds independently measured waveform consistency; V3 uses HMAC-authenticated same-patient longitudinal references. The expanded locked measurements use V1 only. Matched-coverage V1/V2/V3 comparison requires validation-calibrated thresholds and adaptive re-optimization against each actual defense, rather than replaying one attack and interpreting differing rejection rates as robustness.
+
+The experiment APIs cover E0 clean eligibility, E1 attacks, E1b staged ablations, E2 retrieval mediation, E3 latent restoration, E4 counterfactual alignment, E5 matched-coverage re-attack, E6 transfer, and E7 authenticated-history stress. Only E0/E1 form the expanded completed study. The others require explicit intervention, adjudication, transfer-victim, or authenticated-history callbacks; no effect size for these unevaluated experiments is imputed.
+
+Each complete submission is counted and logged with identities, decisions, constraint checks, outcome metadata, and waveform-artifact hashes. Records are hash-chained and sealed with a terminal manifest containing expected record count and final digest. Recomputing a valid chain verifies internal file consistency and detects changes relative to that manifest; it is not an externally timestamped proof or an independent scientific adjudication. The archived final validation and held-out packages each report a complete valid log with 1,470 records and 990 waveform artifacts.
+
+\section{Security experiments and results}
+\label{sec:securityresults}
+\subsection{Locked cohort and design}
+The final C3 configuration selects at most 30 candidate patients per target and retains ten analysis-eligible clean-correct patients per split. The E0 heuristic finds 19 analysis-eligible candidates among 30 on validation and 17 among 30 on held-out evaluation. Its diagnosis accuracy is 63.33\% and 56.67\%, respectively, with full clean release coverage. This small MI-enriched internal-victim cohort differs from the complete five-class released-stack cohort. Clean accuracy of 100\% in the ten selected attack patients is a conditioning rule, not representative population accuracy.
+
+The matrix is four attacks $\times$ two constraints $\times$ two budgets $\times$ three seeds (17, 42, 73) $\times$ ten patients. Each split therefore has 480 attack observations, with 30 observations in each attack/constraint/budget cell and 960 complete attack queries. The 30 clean E0 evaluations yield 990 waveform evaluations in the saved audit package. Seeds and arms reuse the same patients: there are ten independent patient clusters, not 480 independent clinical subjects.
+
+The lock binds the YAML, artifact tree, historical code tree, dataset hashes, preprocessing, folds, cohort caps, and validation results before the held-out run. The reported intervals collapse repeated records and seeds within patient and bootstrap the ten patient means with 10,000 resamples. Because the cell has three seeds per patient, its point mean agrees with the observation average. Statistical precision is necessarily limited; zero-width intervals for identical paired outcomes do not establish population equivalence.
+
+The source code now supports uncapped patient selection and every eligible ECG per patient in new full-patient runs. The existing locked settings intentionally retain their original 30-candidate/10-eligible caps and historical record policy. Making the default uncapped does not retroactively turn the saved study into an all-patient experiment.
+
+\subsection{Held-out cell-level outcomes}
+\begin{table}[htbp]\centering\scriptsize
+\resizebox{\linewidth}{!}{\input{tables/security_heldout.tex}}
+\caption{Complete locked held-out E1 matrix. Target ASR includes saved patient-bootstrap 95\% intervals; the remaining columns are point estimates. Every cell has ten selected patients and three seeds. All outcomes are automated nonclinical measurements of the internal waveform-callable victim.}\label{tab:securityheldout}\end{table}
+
+\fig{security}{1}{Targeted NORM diagnosis attack success on clean-correct held-out MI cases, with patient-bootstrap 95\% intervals. Shared patients and seeds make arms dependent. Equal target success across attack families is an observed small-cohort result.}
+
+Every held-out $\mathcal S_\infty$ cell has targeted ASR 40\%, and every spectral cell has targeted ASR 10\%, at both budgets. The corresponding per-cell target intervals are wide: 10--70\% for the amplitude-only cells and 0--30\% for spectral cells. Released-target-claim ASR equals targeted diagnosis ASR in this deterministic V1 setting. This equality does not establish that the target claims were independently adjudicated or that V1 defends against clinically preserved false-normal cases.
+
+Untargeted errors are more frequent than exact NORM targeting. At $B=1$, amplitude-only untargeted ASR ranges from 76.67\% to 83.33\%; spectral ASR is 20.00--26.67\%. At $B=3$, amplitude-only ASR is 83.33\% across the four attacks and spectral ASR is 30.00\%. Thus more complete submissions discover additional non-target misclassifications without increasing the exact-target count in this cohort.
+
+\begin{table}[htbp]\centering\small
+\begin{tabular}{llrrrr}\toprule
+Split & Budget & Target ASR & Claim ASR & Untargeted ASR & Robust accuracy\\\midrule
+Validation & 1 & 15.00 & 15.00 & 38.75 & 61.25\\
+Validation & 3 & 15.00 & 15.00 & 49.17 & 50.83\\
+Held-out & 1 & 25.00 & 25.00 & 52.50 & 47.50\\
+Held-out & 3 & 25.00 & 25.00 & 56.67 & 43.33\\\bottomrule
+\end{tabular}
+\caption{Descriptive equal-weight averages across the eight attack/constraint cells at each budget. Values are percentages. These are neither pooled independent-patient rates nor a worst-of-all-attacks robustness estimate. Selected perturbation validity is 100\% in all rows.}\label{tab:securitymacro}\end{table}
+
+The held-out average is numerically worse than validation, but the two splits have different selected patients and no independent clinical endpoint. The spectral constraint is more restrictive and yields lower observed ASR; it does not follow that it models every realistic acquisition artifact. A worst-case robustness benchmark would aggregate the union of successful valid attacks per patient under a declared threat model instead of averaging attack cells.
+
+\subsection{Paired adaptive comparisons}
+Table~\ref{tab:securitypaired} adds a retrospective paired analysis of K2/K3 versus F1 PGD, matching patient, record, seed, and budget. It uses 10,000 patient resamples with report seed 20261027, after averaging repeated seeds within patient. There is no target-ASR advantage for either adaptive arm in any held-out stratum. The sole nonzero displayed untargeted difference is K3 versus PGD at $\mathcal S_\infty$, $B=1$: $+3.33$~pp with nominal interval $[0,10]$~pp. This is one exploratory contrast among several dependent comparisons, without multiplicity correction. It does not substantiate a general adaptive-attack advantage.
+
+\begin{table}[htbp]\centering\scriptsize
+\resizebox{\linewidth}{!}{\input{tables/security_paired.tex}}
+\caption{Adaptive-minus-PGD paired differences on held-out automated endpoints, in pp with retrospective pointwise patient-bootstrap 95\% intervals. Clinical-primary differences remain not evaluable.}\label{tab:securitypaired}\end{table}
+
+\subsection{Perturbation distortion and validity}
+For $M=12,000$ waveform samples, the report uses
+\begin{align}
+\mathrm{RMSE}&=\norm{\delta}_2/\sqrt{M},\\
+\mathrm{PRD}&=100\norm{\delta}_2/\norm{x}_2,\qquad
+\mathrm{SNR}_{\mathrm{dB}}=20\log_{10}(\norm{x}_2/\norm{\delta}_2).
+\end{align}
+The implementation handles degenerate zero-energy cases explicitly; none of these quantities measures clinical harm. L-infinity, global and maximum-per-lead L2, mean absolute error, and first-success distortion are also available in the underlying JSON. Appendix~\ref{app:distortion} reports mean selected-waveform RMSE, PRD, SNR, and query counts for all held-out cells.
+
+All selected waveforms meet their declared numerical constraint in the saved automated summary. Amplitude-only perturbations tend to approach the 0.02~mV bound; spectral projection lowers high-frequency energy and slew. Validity is an optimization/constraint check, not clinical admissibility. The local checker does not independently demonstrate that MI morphology survived unchanged, and primary incorrect-release rates remain missing rather than zero.
+
+\subsection{Later momentum validation experiment}
+The separate momentum-decay-0.9 validation run contains the same 480 observation slots but uses 888 complete attack queries. At $B=1$ its cell-average targeted ASR is 15.00\%, untargeted ASR 39.17\%, and robust accuracy 60.83\%; at $B=3$ these are 15.00\%, 52.08\%, and 47.92\%. Full cell values are in Appendix~\ref{app:momentum}. Relative to the earlier validation run, the target average is unchanged while the untargeted average at $B=3$ rises by about 2.92~pp.
+
+This experiment is validation-only, postdates the locked held-out configuration, and has a different historical code identity. No momentum held-out study is supplied, and the changed implementation path prevents attribution of every difference solely to momentum without a controlled same-code ablation. Its purpose here is to document available exploratory evidence, not to replace the original locked conclusion or claim superior clinical attack performance.
+
+\input{adaptive_dpo.tex}
+
+\section{Interpretation, limitations, and remaining experiments}
+\label{sec:discussion}
+\subsection{What the results support}
+The strongest completed classification evidence is a reproducible, record-aligned fixed-candidate evaluation over the whole eligible prepared PTB-XL fold-10 cohort. The released stack improves on the previous repository run and exposes a concrete remaining weakness in HYP. The specialist result provides a useful negative finding: a large validation search can yield a modest validation gain that does not survive evaluation. The report's patient-cluster reanalysis preserves repeated-record dependence while quantifying uncertainty for frozen predictions.
+
+The system also demonstrates an auditable composition of encoding, a learned Bayesian component, constrained state-edit search, evidence retrieval, and deterministic reporting. Explanatory evidence is scoped explicitly. However, the final probability source and the graph are different components, so interpretability of one cannot be transferred automatically to the other. The zero fused-attribution availability is the correct recorded result for this deployment configuration.
+
+The security package demonstrates full-system query accounting, constraint validation, structured event logs, and repeatable automated outcomes. Its current results show that low-amplitude valid perturbations can alter the internal victim's predictions in a small selected cohort while reports still satisfy lexical checks. This is evidence of an engineering failure mode under a specified threat model. It is not evidence about prospective clinical impact, all-patient risk, or the external stack's robustness.
+
+The v2 study adds a modest exact-target development gain on one constraint, with a tie on the other and no uniform untargeted advantage. The DPO study demonstrates actual optimization and correctly refuses promotion when validation metrics do not improve. Loss reduction and improved attack or verifier performance are separate results.\par
+
+\subsection{Main threats to validity}
+\textbf{Task and dataset shifts.} Single-label projection removes concurrent diagnoses and excludes unannotated rows from supervised metrics. Different PTB-XL versions do not create independent patients. MIMIC inference would involve hospital, population, acquisition, and annotation shifts. No external-site result is available.
+
+\textbf{Model-selection uncertainty.} Validation is reused for early stopping, calibration, stack search, and extensive specialist screening. Stack cross-fitting applies only to fixed source outputs. Post-lock refit changes one source distribution. The frozen fold-10 candidate is auditable, but earlier aggregate test knowledge precludes a globally untouched-test claim. Bootstrap intervals do not account for these sources of optimism.
+
+\textbf{Causal interpretation.} Anonymous latent factors, ordered observational graph learning, factorized priors, and directed paths do not identify physiological causal mechanisms. The ontology has no reviewed causal priors. State edits condition a learned distribution and are not physical interventions. No biomarker anchoring, interventional validation, or independent causal-graph recovery score is supplied.
+
+\textbf{Report evaluation.} Template text is easier to cover lexically than free-form clinical language. Fact coverage can be perfect with a wrong diagnosis; the observed 500 wrong passes demonstrate this limitation. Context and semantic relevance are lexical proxies. The completed run has no real history, fallback, or abstention examples, and no clinician grading or original-paper LLM report generation.
+
+\textbf{Security sample and endpoint.} Ten selected patients per split are inadequate for broad prevalence or rare-event conclusions. Repeated seeds and arms are dependent. Adult status and independently preserved target findings are missing. The clinical primary endpoint and all corresponding primary attack comparisons are not evaluable. Local numerical validity should never be renamed clinical preservation.
+
+\textbf{Adaptive policy selection.} V2 uses the same candidate pool as its pilot; fold-9 outcomes informed development. DPO repeats fold-9 selection across generations and uses a diagnosis-only automated teacher. The small action catalog, single seed, and short attacks do not establish robust learning or clinically sound rejection. No policy was promoted; final incumbent files must not be described as improved trained models.\par
+
+\textbf{Incomplete benchmark execution.} Full-dataset acquisition support is not equivalent to full evaluation. PTB-XL~1.0.1 and released QA indexing are complete, but their full inference/evaluation is not represented in the saved headline results. MIMIC acquisition is pending. No three-dataset aggregate score or original-paper QA score is available.
+
+\subsection{Concrete completion plan for a future study}
+The following experiments are proposed, not reported outcomes. First, complete the MIMIC acquisition and checksum audit, then freeze an evaluation index with clear study/patient linkage and an authorized report-reference source. Second, define task-specific QA units, multi-turn state handling, exact-match/semantic/adjudicated scoring, generator checkpoint and decoding, and waveform-linked versus text-only strata before scoring the released source rows. Report attempted, completed, failed, skipped, and adjudicated units separately.
+
+For classification, freeze a new protocol before using additional test feedback; consider a multi-label outcome aligned with source annotations and a fresh patient/site evaluation. Compare the waveform model, Bayesian component, and ensemble under the same outcome and record set. Calibration and abstention thresholds should be chosen on validation and evaluated once on that fresh cohort. Publish both discrimination and selective coverage/error, including minority-class uncertainty and predefined subgroup checks where metadata are available.
+
+For explanations, anchor candidate latent coordinates to measured biomarkers with external supervision and report quantitative agreement before assigning physiological names. Evaluate retrieval recall, competing-evidence exclusion, citation correctness, report entailment, diagnosis correctness, and causal-driver agreement separately, with independent clinical review. Compare template and fixed LLM generators on the same cases and corpus rather than comparing unlike local proxies with paper semantic scores.
+
+For security, retain an all-eligible-patient index, independently establish adult and clean-report eligibility, obtain target-specific preservation evidence per queried waveform, and lock the selection and event identities. Include calibrated random controls and all requested constraint families; re-optimize attacks for each defense under matched clean coverage. Execute E1b--E7 only when the required intervention, transfer, and authenticated-history inputs are available. Report numerical and clinical endpoints separately, with patient-level uncertainty and a declared multiplicity strategy.
+
+\section{Reproducibility and artifact availability}
+\label{sec:reproducibility}
+The public code URL is \url{https://github.com/elakhatibi/CARE-ECG-Full-Datasets}. The earlier published snapshot contains source, configurations, tests, and acquisition instructions; the current adaptive-v2/DPO extensions and report are local deliverables and have not been verified as published there. Local datasets, model weights, prediction JSONL, and workbooks are separate artifacts. This report is generated in the local workspace and is a separate deliverable. Its source files, aggregate evidence, tables, and figure PDFs accompany the final PDF so its interpretation can be reviewed and rebuilt where the referenced artifacts are available.
+
+Current software validation executes all 277 tests and 103 subtests successfully. This validates tested implementation behavior, not original-paper equivalence or medical performance. Report-specific checks verify row/label/probability contracts, patient separation, agreement with saved aggregate metrics, selected provenance hashes, per-cell security means, paired v2 case-key alignment, reconstruction of DPO loss from saved preferences, candidate/reference distinctions, runtime checkpoint-lock bindings, and successful PDF compilation. The figure environment uses the system scientific Python installation (NumPy 1.26.4 and Matplotlib 3.6.3) to avoid changing the project's NumPy/PyTorch environment; exact analysis versions are recorded in \code{evidence.json}.
+
+The build reads existing artifacts only. It does not run training, acquire new data, tune decision offsets, or rewrite historical experiment results. Long-running dataset acquisition can continue independently; data availability is a snapshot rather than a promise that pending work has completed. Appendix~\ref{app:replay} provides the operational replay sequence, and Appendix~\ref{app:provenance} identifies the main evidence files and full digests.
+
+\section{Conclusions}
+The implemented CARE-ECG workflow provides a detailed, inspectable path from ECGs to representations, Bayesian-component explanations, retrieved evidence, and reports. Its released diagnostic stack achieves 76.83\% accuracy and 68.25\% macro F1 on the declared eligible PTB-XL fold-10 cohort, with a retrospective patient-cluster macro-F1 interval of 65.45--70.90\%. Minority-class performance, selection reuse, and protocol differences remain substantial limitations. Perfect lexical report scores coexist with 500 wrong diagnoses, and the graph's explanatory scope does not extend to the external diagnostic posterior.
+
+The locked security experiment supplies a small, reproducible automated attack benchmark for the internal waveform model, with a 25\% cell-average exact-target success rate and reduced robust accuracy at larger complete-system budgets. Clinical incorrect release is not evaluable with the present independent evidence. Full-dataset support is implemented and two source indexes are complete; MIMIC and full QA evaluation remain unfinished. Adaptive v2 adds one exact-target success in a 19-patient amplitude-constrained validation sample; spectral target rates tie. Two-role DPO reduces preference loss in two rounds but yields zero promotions. No held-out DPO improvement or clinical verifier benefit is established. These distinctions preserve the usefulness of the measured results without turning missing experiments or implementation choices into original-paper reproduction claims.
+
+\clearpage

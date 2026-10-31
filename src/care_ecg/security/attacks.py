@@ -25,7 +25,7 @@ from .contracts import (
     MeasurementStatus,
     VictimSnapshot,
 )
-from .objectives import adaptive_objective, latent_bin_margin_loss
+from .objectives import ObjectiveTerms, adaptive_objective, latent_bin_margin_loss, targeted_nll
 from .victim import BudgetedVictim
 
 
@@ -1678,6 +1678,9 @@ class F3AdaptiveAttack(F1PGDAttack):
         defense_weight: float = 0.0,
         black_box_method: str = "nes",
         black_box_parameterization: Any | None = None,
+        search_version: str = "legacy",
+        adaptive_step_factor: float = 2.0,
+        auxiliary_scale: float = 0.1,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -1689,12 +1692,231 @@ class F3AdaptiveAttack(F1PGDAttack):
             raise ValueError("At least one F3 objective weight must be positive")
         if black_box_method not in {"nes", "simba", "square"}:
             raise ValueError("black_box_method must be nes, simba, or square")
+        if search_version not in {"legacy", "adaptive_v2"}:
+            raise ValueError("search_version must be legacy or adaptive_v2")
+        if not np.isfinite(adaptive_step_factor) or adaptive_step_factor <= 0:
+            raise ValueError("adaptive_step_factor must be finite and positive")
+        if not np.isfinite(auxiliary_scale) or not 0 < auxiliary_scale <= 1:
+            raise ValueError("auxiliary_scale must be in (0, 1]")
+        if search_version == "adaptive_v2" and self.knowledge_level is KnowledgeLevel.K1:
+            raise ValueError(
+                "adaptive_v2 requires K2/K3 surrogate access; K1 remains decision-only"
+            )
         self.diagnosis_weight = float(diagnosis_weight)
         self.retrieval_weight = float(retrieval_weight)
         self.verifier_weight = float(verifier_weight)
         self.defense_weight = float(defense_weight)
         self.black_box_method = black_box_method
         self.black_box_parameterization = black_box_parameterization
+        self.search_version = search_version
+        self.adaptive_step_factor = float(adaptive_step_factor)
+        self.auxiliary_scale = float(auxiliary_scale)
+
+    def _adaptive_terms(self, victim, candidate, target_name, defense, weights):
+        terms, surrogate = self._objective(victim, candidate, target_name, defense, None, weights)
+        # Unlike a clipped margin, NLL continues to provide target-directed gradients
+        # after the target first wins. Keep a margin penalty for confident separation.
+        diagnosis = terms.diagnosis + targeted_nll(
+            surrogate.probabilities, victim.target_index(target_name)
+        )
+        total = (
+            weights["diagnosis"] * diagnosis
+            + weights.get("retrieval", 0.0) * terms.retrieval
+            + weights.get("verifier", 0.0) * terms.verifier
+            + weights.get("defense", 0.0) * terms.defense
+        )
+        return ObjectiveTerms(
+            total, diagnosis, terms.retrieval, terms.verifier, terms.defense, terms.latent
+        ), surrogate
+
+    def _run_adaptive_gradient(self, session, *, constraint, weights, family_metadata):
+        """Feedback-conditioned projected search; success still uses real submissions.
+
+        Uses the same steps/restarts and full-system budget as the PGD comparator.
+        Checkpoint step reduction is inspired by Auto-PGD, but this is a custom
+        composite-loss implementation, not the reference AutoAttack implementation.
+        """
+        device = getattr(session.victim, "device", torch.device("cpu"))
+        clean = torch.as_tensor(session.clean, dtype=torch.float32, device=device).unsqueeze(0)
+        generator = torch.Generator(device=device).manual_seed(self.seed)
+        checkpoint = max(2, self.steps // 10)
+        iterations = backward_evaluations = 0
+        evaluations = 1  # The K2/K3 availability probe in run() is a real forward call.
+        feedback_trace = []
+
+        def objective(candidate, effective):
+            nonlocal evaluations
+            evaluations += 1
+            return self._adaptive_terms(
+                session.victim, candidate, session.target_name, session.defense, effective
+            )
+
+        for restart in range(self.restarts):
+            if session.remaining <= 0 or session.observable_goal_achieved:
+                break
+            # Only attacker-visible pipeline outcomes guide the next restart. Neither
+            # clinical preservation nor the evaluator's primary-success label is read.
+            if session.attempts:
+                incumbent = max(
+                    range(len(session.attempts)),
+                    key=lambda i: (
+                        session.attempts[i].diagnosis == session.target_name,
+                        session.attempts[i].target_probability,
+                    ),
+                )
+                feedback = session.snapshots[incumbent]
+            else:
+                incumbent = None
+                feedback = session.clean_snapshot
+            target_reached = feedback.diagnosis == session.target_name
+            phase = "repair_release" if target_reached else "acquire_target"
+            effective = dict(weights)
+            if not target_reached:
+                for name in ("retrieval", "verifier", "defense"):
+                    effective[name] *= self.auxiliary_scale
+            elif not feedback.released:
+                # Re-attack the actual rejected target instead of repeatedly starting
+                # from clean and optimizing the same uncalibrated proxy weights.
+                effective["verifier"] *= 2.0
+                effective["defense"] *= 2.0
+
+            warm_start = incumbent is not None and restart % 2 == 1
+            candidate = (
+                torch.as_tensor(
+                    session.attempts[incumbent].waveform, dtype=clean.dtype, device=device
+                ).unsqueeze(0)
+                if warm_start
+                else clean.clone()
+            )
+            if self.random_start and self.epsilon_mv:
+                radius = self.epsilon_mv * (0.25 if warm_start else 1.0)
+                if self.norm == "linf":
+                    delta = torch.empty_like(clean).uniform_(-radius, radius, generator=generator)
+                else:
+                    delta = torch.randn(
+                        clean.shape, generator=generator, dtype=clean.dtype, device=device
+                    )
+                    flat = delta.reshape(1, -1)
+                    delta = (
+                        flat
+                        / torch.linalg.vector_norm(flat, dim=1, keepdim=True).clamp_min(1e-12)
+                        * torch.rand((), generator=generator, device=device)
+                        * radius
+                    ).reshape_as(clean)
+                candidate = candidate + delta
+            candidate = _project_candidate(
+                clean, candidate, self.epsilon_mv, self.norm, constraint
+            ).detach()
+            # Initial step is norm-native. It is reduced after oscillation/stagnation,
+            # rather than using extra optimization iterations or extra victim queries.
+            step_size = (
+                max(self.step_size_mv, self.adaptive_step_factor * self.epsilon_mv)
+                if self.step_size_mv > 0
+                else 0.0
+            )
+            best = candidate.clone()
+            best_terms, best_surrogate = objective(best, effective)
+            best_loss = float(best_terms.total.detach())
+            previous_loss = checkpoint_best = best_loss
+            momentum = torch.zeros_like(candidate)
+            improved_steps = reductions = best_step = 0
+            for step in range(self.steps):
+                candidate.requires_grad_(True)
+                terms, _ = objective(candidate, effective)
+                gradient = torch.autograd.grad(terms.total, candidate)[0]
+                backward_evaluations += 1
+                if not bool(torch.isfinite(gradient).all()):
+                    raise ValueError("adaptive_v2 encountered a nonfinite surrogate gradient")
+                with torch.no_grad():
+                    flat = gradient.reshape(1, -1)
+                    scale = (
+                        flat.abs().mean(dim=1, keepdim=True)
+                        if self.norm == "linf"
+                        else torch.linalg.vector_norm(flat, dim=1, keepdim=True)
+                    )
+                    momentum = self.momentum_decay * momentum + (
+                        flat / scale.clamp_min(1e-12)
+                    ).reshape_as(candidate)
+                    direction = momentum
+                    if self.norm == "linf":
+                        direction = direction.sign()
+                    else:
+                        direction = direction / torch.linalg.vector_norm(
+                            direction.reshape(1, -1), dim=1, keepdim=True
+                        ).clamp_min(1e-12).reshape(1, 1, 1)
+                    candidate = _project_candidate(
+                        clean,
+                        candidate - step_size * direction,
+                        self.epsilon_mv,
+                        self.norm,
+                        constraint,
+                    ).detach()
+                logged_terms, surrogate = objective(candidate, effective)
+                value = float(logged_terms.total.detach())
+                improved_steps += int(value < previous_loss - 1e-12)
+                previous_loss = value
+                iterations += 1
+                if value < best_loss:
+                    best = candidate.clone()
+                    best_loss, best_terms, best_surrogate = value, logged_terms, surrogate
+                    best_step = step + 1
+                if (step + 1) % checkpoint == 0:
+                    stalled = best_loss >= checkpoint_best - 1e-12
+                    oscillating = improved_steps < 0.75 * checkpoint
+                    if stalled or oscillating:
+                        step_size *= 0.5
+                        candidate = best.clone()
+                        previous_loss = best_loss
+                        momentum.zero_()
+                        reductions += 1
+                    checkpoint_best, improved_steps = best_loss, 0
+            state = {
+                "restart": restart + 1,
+                "feedback_phase": phase,
+                "feedback_diagnosis": feedback.diagnosis,
+                "feedback_released": bool(feedback.released),
+                "warm_start_query_index": (
+                    session.attempts[incumbent].query_index if warm_start else None
+                ),
+                "effective_weights": effective,
+                "gradient_step": best_step,
+                "surrogate_steps_in_restart": self.steps,
+                "step_size_reductions": reductions,
+                "final_step_size_mv": step_size,
+                "surrogate_objective": best_loss,
+                "objective_terms": best_terms.detached(),
+                "surrogate": best_surrogate.metadata,
+                "surrogate_selection_policy": "minimum_composite_objective_within_restart",
+            }
+            session.submit(best[0], metadata=state)
+            feedback_trace.append(state)
+        return session.result(
+            "query_budget_exhausted" if session.remaining <= 0 else "optimization_steps_exhausted",
+            {
+                **family_metadata,
+                "search_version": "adaptive_v2",
+                "optimizer": "feedback_adaptive_projected_gradient",
+                "diagnosis_loss": "targeted_margin_plus_nll",
+                "norm": self.norm,
+                "epsilon_mv": self.epsilon_mv,
+                "step_size_mv": self.step_size_mv,
+                "adaptive_step_factor": self.adaptive_step_factor,
+                "auxiliary_scale": self.auxiliary_scale,
+                "steps": self.steps,
+                "restarts": self.restarts,
+                "random_start": self.random_start,
+                "confidence": self.confidence,
+                "momentum_decay": self.momentum_decay,
+                "surrogate_iterations": iterations,
+                "surrogate_forward_evaluations": evaluations,
+                "surrogate_backward_evaluations": backward_evaluations,
+                "complete_system_query_schedule": "one_best_candidate_per_restart",
+                "builtin_lp_projection": _uses_builtin_lp_projection(self.norm, constraint),
+                "feedback_trace": feedback_trace,
+                "clinical_evidence_used_for_search": False,
+                "cross_restart_selection": "complete_system_feedback_loss",
+            },
+        )
 
     def run(
         self,
@@ -1876,10 +2098,15 @@ class F3AdaptiveAttack(F1PGDAttack):
             if reoptimization_applied
             else "fresh_optimization_without_defense_specific_objective"
         )
-        return self._run_gradient(
+        runner = (
+            self._run_adaptive_gradient
+            if self.search_version == "adaptive_v2"
+            else self._run_gradient
+        )
+        return runner(
             session,
             constraint=constraint,
-            guidance=None,
+            **({"guidance": None} if self.search_version == "legacy" else {}),
             weights={
                 "diagnosis": self.diagnosis_weight,
                 "retrieval": effective_retrieval_weight,

@@ -1,0 +1,323 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=24mm,headheight=15pt]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern,microtype,amsmath,amssymb,graphicx,booktabs,longtable,array,tabularx}
+\usepackage{float,caption,enumitem,xcolor,fancyhdr,listings,tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\usepackage[hyphens]{url}
+\usepackage[colorlinks=true,linkcolor=blue!45!black,citecolor=blue!45!black,urlcolor=blue!55!black,bookmarksnumbered=true]{hyperref}
+\definecolor{navy}{HTML}{15384C}
+\definecolor{teal}{HTML}{206B7D}
+\definecolor{orange}{HTML}{B76A16}
+\hypersetup{pdftitle={CARE-ECG: Detailed Methodology, Experimental Protocols, and Evidence-Based Results},pdfauthor={CARE-ECG repository technical documentation},pdfsubject={Independent implementation and retrospective experimental audit}}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\textcolor{navy}{CARE-ECG: methodology and experimental evidence}}
+\fancyhead[R]{\small 27 October 2026}
+\fancyfoot[L]{\footnotesize Independent implementation; research use}
+\fancyfoot[R]{\thepage}
+\setlength{\parindent}{0pt}\setlength{\parskip}{5.5pt}
+\setlist[itemize]{leftmargin=18pt,itemsep=2pt,topsep=3pt}
+\setlist[enumerate]{leftmargin=21pt,itemsep=3pt,topsep=3pt}
+\renewcommand{\arraystretch}{1.16}
+\captionsetup{font=small,labelfont=bf,skip=7pt}
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true,columns=fullflexible,keepspaces=true,frame=single,rulecolor=\color{black!15},backgroundcolor=\color{black!2},showstringspaces=false}
+\newcommand{\code}[1]{\texttt{\detokenize{#1}}}
+\newcommand{\scope}[1]{\par\smallskip\noindent\fcolorbox{teal!35}{teal!4}{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{#1}}\par\smallskip}
+\newcommand{\fig}[3]{\begin{figure}[htbp]\centering\includegraphics[width=#2\linewidth]{figures/#1.pdf}\caption{#3}\label{fig:#1}\end{figure}}
+\newcommand{\gt}{\mathrm{GT}}
+\newcommand{\norm}[1]{\left\lVert #1\right\rVert}
+\begin{document}
+\hypersetup{pageanchor=false}
+\begin{titlepage}
+\vspace*{12mm}
+{\Large\color{teal} RESEARCH IMPLEMENTATION TECHNICAL REPORT\par}
+\vspace{13mm}
+{\Huge\bfseries\color{navy} CARE-ECG\par}
+\vspace{5mm}
+{\LARGE\bfseries Detailed Methodology,\par Experimental Protocols,\par and Evidence-Based Results\par}
+\vspace{11mm}
+{\large Waveform representation learning, Bayesian reasoning,\par counterfactual search, evidence-grounded reporting,\par full-dataset ingestion, and adaptive security evaluation\par}
+\vspace{13mm}
+{\large Code and evidence review: 27 October 2026\par}
+\vspace{6mm}
+\href{https://github.com/elakhatibi/CARE-ECG-Full-Datasets}{github.com/elakhatibi/CARE-ECG-Full-Datasets}
+\vfill
+\scope{\textbf{Report identity.} This manuscript describes the independent implementation in the repository and audits saved local experiments. It is separate from the original CARE-ECG publication. Measured outcomes, retrospective analyses, implemented but unevaluated capabilities, and pending dataset work are identified separately. No new training or clinical study was conducted to prepare this document.}
+\vspace{5mm}
+{\small The report contains aggregate results only. Patient identifiers, waveforms, credentials, and model weights are not embedded. Numerical tables and figures are regenerated from the accompanying \code{build_evidence.py}; the input hashes and aggregate analysis are archived in \code{evidence.json}.}
+\end{titlepage}
+\hypersetup{pageanchor=true}
+\pagenumbering{roman}
+
+\section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
+CARE-ECG couples ECG representation learning with probabilistic reasoning, retrieval, and traceable report generation. This report specifies the implemented pipeline in sufficient detail to distinguish its computations from the stronger causal and clinical interpretations that the available evidence cannot establish. A supervised temporal variational autoencoder uses an InceptionTime-style encoder to learn 64 latent coordinates from 12-lead, 100~Hz, 10-second ECGs. Training-only quantiles discretize posterior means; an ordered K2 search with a BDeu score fits a categorical Bayesian network. Exact inference, local posterior sensitivity, and single-coordinate evidence edits support explanation. A separate, validation-locked multinomial stack over three legacy benchmark-derived probability sources supplies the released diagnosis. History, Diagnosis, Causal-RAG, and Response agents construct fact-tagged reports with lexical verification and fallback.
+
+The completed supervised study uses 17,084 eligible PTB-XL training ECGs, 2,146 validation ECGs, and all 2,158 eligible fold-10 ECGs from 1,877 patients. Reanalysis of the saved released predictions gives accuracy 76.83\%, macro precision 68.87\%, macro recall 67.74\%, and macro F1 68.25\%. A retrospective 10,000-resample patient-cluster bootstrap gives a macro-F1 interval of 65.45--70.90\%. HYP is the weakest class, with recall 40.58\% and F1 42.11\%. A subsequent waveform-specialist search improves validation F1 but reduces fold-10 F1 and is not promoted. Report checks show perfect lexical evidence coverage while passing all 500 wrong diagnoses, illustrating their limited diagnostic scope.
+
+A separate locked waveform-callable security study evaluates four attacks, two constraints, two complete-system query budgets, and three seeds on ten selected clean-correct patients per split. Its held-out cell-average targeted attack success is 25.0\% at both budgets; untargeted success rises from 52.5\% to 56.7\%. These are automated, nonclinical outcomes for the internal model, excluding the cached diagnostic stack. The clinical incorrect-release endpoint is not evaluable. Full acquisition and indexing are complete for PTB-XL~1.0.1 (21,837 ECGs) and 43,670 released Expert-ECG-QA source rows; MIMIC-IV-ECG acquisition remains pending at the snapshot. No completed MIMIC faithfulness or full QA benchmark score is claimed. Differences in artifacts, label projection, generation, and evaluation keep the original-paper reproduction status \textbf{NOT REPRODUCED}.
+
+\textbf{Keywords:} ECG; variational autoencoder; InceptionTime; Bayesian network; causal attribution; retrieval-augmented generation; patient-grouped evaluation; adversarial robustness; reproducibility.
+
+\clearpage
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+\section{Scope, evidence, and research questions}
+\label{sec:scope}
+\subsection{What system is being described?}
+The original CARE-ECG article proposes a physiological reasoning stream and an agentic report stream for explainable, counterfactual ECG interpretation~\cite{care}. The repository implements an independent engineering realization of those modules. The locally documented experiment does not have the original trained checkpoints, clinical graph priors, licensed knowledge collection, exact split files, prompts, or evaluator implementation. Its replacements are part of the method and must remain visible when interpreting results.
+
+There are three distinct execution settings. \textbf{Released fixed-candidate classification} uses saved, record-aligned external expert probabilities to determine diagnosis while an internal InceptionTime model supplies explanatory context. \textbf{Waveform-callable inference} recomputes the internal model from the waveform and can process new ECGs; it does not manufacture external scores for unseen records. \textbf{Security evaluation} perturbs raw-mV waveforms and attacks this callable internal model. The cached external stack is excluded because it cannot respond to waveform edits. Accuracy of the released stack and robustness of the internal victim therefore refer to different diagnostic mechanisms.
+
+\subsection{Research questions and available evidence}
+The report addresses five questions:
+\begin{enumerate}
+\item How are waveforms converted into latent variables, categorical evidence, diagnostic probabilities, retrieved facts, and reports?
+\item Under the declared PTB-XL single-label projection, what performance does the frozen released system achieve, and which classes account for its errors?
+\item Do validation improvements survive fixed-candidate evaluation, and what uncertainty remains after accounting for repeated ECGs per patient?
+\item What does a small locked adversarial study establish about the waveform-callable victim, and what clinical-security conclusions remain unmeasured?
+\item How does full-corpus support relate to completed evaluation, particularly for different PTB-XL versions, MIMIC-IV-ECG, and released QA tasks?
+\end{enumerate}
+
+Four evidence classes are used consistently: \emph{saved measurements} from experiment JSON/JSONL files; \emph{new retrospective analyses} of those frozen outputs; \emph{implemented capabilities} verified in source code; and \emph{uncompleted studies} for which no outcome is supplied. The accompanying scripts do not update models, choose thresholds for deployment, or relabel records. The original paper's numbers are reference targets, not observations from this repository.
+
+\subsection{Snapshot and traceability}
+The code was published at repository commit \code{e98a5b0a2735f69a49c31e6fca2e624880376809}. The classification and specialist experiments were recorded on 21 October 2026; the expanded locked security study on 26 October 2026. The report's aggregate reanalysis and data-status review are dated 27 October 2026, America/Los\_Angeles. Archived security logs bind their own historical code identities; later full-corpus and momentum changes must not be retroactively attributed to those locked runs. The report records current source hashes separately from historical experiment identities.
+
+\section{Datasets, task definition, and patient coverage}
+\label{sec:data}
+\subsection{PTB-XL: supervised task versus full database}
+PTB-XL provides 12-lead ECGs, SCP-ECG annotations, and recommended patient-separated folds~\cite{ptbxl,ptbxl_data}. The completed local supervised experiment uses the 21,799-row release described in its run metadata as version~1.0.3. There are 18,869 identifiable patients in the full local index. The acquisition module conservatively leaves this older local directory's version unverified when no acquisition receipt exists; this provenance limitation does not change the saved prediction cohort or hashes.
+
+The supervised task is a \emph{single-label projection} to the ordered set
+\begin{equation}
+\mathcal{Y}=\{\mathrm{NORM},\mathrm{MI},\mathrm{STTC},\mathrm{CD},\mathrm{HYP}\}.
+\end{equation}
+These abbreviations denote normal ECG, myocardial infarction, ST/T changes, conduction disturbance, and hypertrophy, respectively. For each eligible superclass, the preparation code retains SCP likelihoods and selects the superclass with the highest eligible likelihood. Ties use the displayed order. This changes a potentially multi-label annotation problem into a categorical one; performance is consequently conditional on this projection and is not an official multi-label PTB-XL benchmark result.
+
+Exactly 411 local records have no eligible diagnostic superclass. They are excluded from supervised labels, leaving 21,388 eligible ECGs, but are retained in the all-record index. No missing annotation is converted to NORM. The training set uses folds~1--8; fold~9 supplies validation; fold~10 supplies fixed-candidate evaluation. Table~\ref{tab:cohorts} is independently counted from the prepared NPZ archives, including unique patients.
+
+\begin{table}[htbp]\centering\small
+\input{tables/cohorts.tex}
+\caption{Prepared supervised cohorts. Counts are ECGs unless explicitly labeled patients. No patient or record overlaps between these three splits were found.}
+\label{tab:cohorts}\end{table}
+
+Raw split sizes are 17,418, 2,183, and 2,198; excluded counts are 334, 37, and 40, respectively. Thus ``complete fold-10 coverage'' in the classifier study means all 2,158 \emph{eligible} ECGs, not all 2,198 raw fold-10 records. In the test cohort NORM accounts for 43.19\% of records and HYP for only 3.20\%. Macro metrics prevent the largest class from dominating the reported result, although the small HYP support still limits precision of class-specific conclusions.
+
+\subsection{Paper-count PTB-XL acquisition}
+The paper lists 21,837 ECGs from 18,885 patients. The acquisition configuration chooses PTB-XL~1.0.1 because its published count agrees with that number~\cite{ptbxl_old}. This is an explicit version choice; a count match is not proof of the authors' exact dataset revision. At the report snapshot, download, extraction, publisher-checksum verification, and indexing of this release are complete: all 21,837 records are indexed and no requested waveform is missing.
+
+The downloaded release contains 100~Hz and 500~Hz waveforms. It is kept in a separate directory and index from the local completed experiment. The previously trained model, labels, stack arrays, and fold-10 measurements are not silently replaced. Older and newer PTB-XL releases share many ECGs and must not be pooled as independent external validation data. Full-corpus inference over either release includes training records unless a fold filter is supplied; it cannot be called held-out evaluation merely because every patient is processed.
+
+\subsection{MIMIC-IV-ECG}
+The open waveform release MIMIC-IV-ECG~1.0 contains approximately 800,000 diagnostic ECGs from nearly 160,000 patients~\cite{mimic}. The implementation downloads its versioned archive, verifies publisher checksums after extraction, and streams metadata into a disk-backed JSONL index. At the report snapshot MIMIC remains the sole pending acquisition item. A partial archive is not counted as a completed or evaluated dataset.
+
+The paper uses this resource primarily for retrieval faithfulness rather than treating its ECGs as a ready-made five-class QA test. The saved local classifier has a five-superclass output space fitted to PTB-XL. Its MIMIC outputs would therefore be transferred model predictions, not newly established categorical ground truth. Waveform availability also does not imply that the paper's report corpus, case linkage, or faithfulness adjudication has been reconstructed. This report supplies no completed MIMIC classification, grounding, or faithfulness score.
+
+\subsection{Expert-ECG-QA source normalization}
+The QA source is pinned to revision \code{4fcb46974eed422532772caa483a5e621f006ff1} of the dataset publisher's repository~\cite{qa_repo,qa}. All 43,670 released source rows in 11 JSON task files are indexed; 17,024 patient identifiers can be identified in that source. The original CARE-ECG paper lists 47,211 QA pairs covering 12 tasks. Released source rows and semantic QA turns are different units, and some rows contain nested dialogues or multiple questions. The difference of 3,541 between these two headline counts does not establish exactly 3,541 missing independent questions. The implementation preserves the available payloads and documents the discrepancy instead of inventing examples.
+
+\begin{table}[htbp]\centering\small
+\input{tables/qa_tasks.tex}
+\caption{Complete released QA source-row inventory for the pinned revision. These are acquisition counts, not successfully answered or scored questions.}
+\label{tab:qa}\end{table}
+
+The cross-modal file reverses the usual field roles: its A field contains the query and Q field the reference answer. The normalizer handles this explicitly. Questions in nested structures are extracted without appending reference answers to the prompt. Unknown patient identifiers remain unknown. Every output retains the source task and reference separately for later task-specific adjudication.
+
+Where a QA study ID links to a MIMIC waveform, a temporary SQLite lookup joins that study and checks the patient ID before inference. Rows without a valid waveform link take an explicitly labeled text-only path using source context and retrieval. This avoids fabricating ECG features for text-only cases. The available runner is an inference and audit tool; it does not reproduce the missing publisher evaluation procedure or a complete multi-turn conversational benchmark. The existing two-row QA smoke output is integration evidence only.
+
+\subsection{Acquisition integrity and memory behavior}
+The downloader uses resumable \code{.zip.part} files, verifies valid HTTP range responses, and resumes from the actual received offset. Retry limits apply to consecutive failures without progress, allowing very long downloads to recover from intermittent interruptions. Exclusive locks protect dataset acquisition and manifest updates. Extraction rejects traversal and symlink entries and uses archive CRC checks; PhysioNet SHA-256 manifests are subsequently checked. Index manifests include source, requested and verified version, hashes, row and patient counts, waveform availability, pending datasets, and errors.
+
+Waveform inference reads a bounded batch instead of loading the entire database. If batch size is $b$, lead count $C$, and resampled length $T$, waveform working memory grows as $O(bCT)$ rather than $O(NCT)$. QA joins use disk-backed lookup. Source arrays for the historical diagnostic stack are a separate record-aligned artifact contract and cannot be generalized by row position to another database.
+
+\section{End-to-end system architecture}
+\label{sec:architecture}
+Figure~\ref{fig:architecture} separates the shared explanatory path from the released external diagnosis path. There is no training step in which a free-form LLM output becomes the supervised label for the completed categorical experiment. The agent names denote software components with explicit inputs and outputs; the default execution does not instantiate a collection of independently trained autonomous LLMs.
+
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}[node distance=5mm and 6mm,>=Latex,
+ box/.style={draw=teal!70,rounded corners=2pt,fill=teal!5,align=center,font=\small,text width=29mm,minimum height=16mm},
+ wide/.style={box,text width=98mm,fill=orange!7,draw=orange!70}]
+\node[box] (x) {12-lead ECG\\units, leads, rate};
+\node[box,right=of x] (enc) {InceptionTime\\posterior mean $\mu$};
+\node[box,right=of enc] (bn) {Latent states\\BN + fusion};
+\node[box,right=of bn] (rag) {Drivers, history\\retrieved facts};
+\node[box,below=12mm of rag] (report) {Response + checks\\report / fallback};
+\node[wide,below=12mm of x,anchor=west] (stack) at (x.west |- report.west) {Released diagnosis: locked stack of SCP meta-model, XResNet101, and XResNet50\\record-aligned expert probabilities; external weight 1.0};
+\draw[->] (x)--(enc);\draw[->] (enc)--(bn);\draw[->] (bn)--(rag);\draw[->] (rag)--(report);
+\draw[->] (stack.north) -- ++(0,4mm) -| (bn.south);
+\end{tikzpicture}
+\caption{Computational paths. The orange box supplies the released diagnostic posterior; the teal path supplies internal representations and explanatory evidence. Security and new-record full-corpus inference use the waveform-callable internal model without the orange record-keyed source.}
+\label{fig:architecture}\end{figure}
+
+\subsection{Waveform and metadata contracts}
+The generic NPZ interface accepts finite signals with aligned labels, record IDs, patient IDs, timestamps, and folds where available. A standard model input is $x\in\mathbb{R}^{12\times1000}$. The full-corpus WFDB loader requires exactly the standard leads and reorders them to I, II, III, aVR, aVL, aVF, V1--V6. It uses physical units from each header: V is multiplied by 1,000; microvolts by 0.001; mV is unchanged. Unsupported units or incompatible lead sets raise an error.
+
+Nonfinite samples are interpolated within each lead; an entirely nonfinite lead becomes zeros. If resampling is required, the code uses polyphase resampling with the source-to-target integer ratio reduced by its greatest common divisor. Longer signals are center-cropped and shorter signals symmetrically zero-padded to the configured duration. These repair and padding rules are deterministic. The completed experiment uses 100~Hz rather than the original paper's 500~Hz input description, which is a documented architectural deviation.
+
+\subsection{Training-only global standardization}
+Preparation for the completed study leaves per-record normalization disabled. A scalar mean and standard deviation are fitted over training-fold records, leads, and samples:
+\begin{equation}
+\bar{x}=\frac{1}{NCT}\sum_{n,c,t}x_{nct},\qquad
+s=\sqrt{\frac{1}{NCT}\sum_{n,c,t}(x_{nct}-\bar{x})^2},\qquad
+x'=(x-\bar{x})/s.
+\end{equation}
+The stored values are $\bar{x}=-0.0008252534$~mV and $s=0.2322225810$~mV. Validation and inference reuse these constants. Global scaling preserves relative amplitudes between leads and records, unlike independently standardizing every trace. Optional robust and z-score per-record policies exist for other configurations but are not the policy behind the reported completed study. Security constraints apply to raw mV before this model normalization.
+
+\section{Representation learning and optimization}
+\label{sec:representation}
+\subsection{Temporal encoder and classifier}
+The completed model uses a six-module InceptionTime-style backbone inspired by multiscale time-series convolutions~\cite{inception}. A stem maps 12 leads to 48 channels with a kernel of length 15 and stride 2, followed by a 48-to-96 convolution of kernel 9 and stride 2. Group normalization and SiLU follow these convolutions. The resulting temporal length is 250 for the 1,000-sample input.
+
+Each Inception module has a 96-to-24 bottleneck, three 24-channel convolution branches with kernel lengths 15, 7, and 3, and a max-pooling branch followed by a 96-to-24 pointwise convolution. Concatenation recovers 96 channels, followed by batch normalization, ReLU, and channel dropout of 0.1. Residual shortcuts span every three modules. A learned scalar attention score $a_t$ pools temporal features $h_t$:
+\begin{equation}
+\alpha_t=\frac{\exp(a_t)}{\sum_{u}\exp(a_u)},\qquad h=\sum_t\alpha_t h_t\in\mathbb{R}^{96}.
+\end{equation}
+Separate linear heads produce a 64-dimensional posterior mean and log variance. Log variance is clamped to $[-12,12]$. The supervised classifier consumes the pooled encoder feature $h$, not the sampled latent vector: layer normalization, a 96-to-192 linear layer, SiLU, dropout, and a 192-to-5 output layer. This bypass matters: class discrimination can improve without proving that every latent coordinate is an interpretable clinical biomarker.
+
+\subsection{Variational objective and deterministic inference}
+The approximate posterior and reparameterization are
+\begin{equation}
+q_\phi(z\mid x)=\mathcal{N}(\mu_\phi(x),\operatorname{diag}(\sigma^2_\phi(x))),\qquad
+z=\mu+\sigma\odot\epsilon,\quad\epsilon\sim\mathcal{N}(0,I).
+\end{equation}
+The decoder projects $z$ to a $96\times20$ seed, applies three transposed convolutions with stride 4 and widths 128, 64, and 32, then a 12-lead output convolution. Linear interpolation aligns the reconstruction to the requested length when necessary. The implementation minimizes
+\begin{align}
+\mathcal{L}_{\mathrm{rec}}&=\frac{1}{bCT}\sum_{n,c,t}(\hat{x}_{nct}-x'_{nct})^2,\\
+\mathcal{L}_{\mathrm{KL}}&=-\frac{1}{2bd}\sum_{n,j}\left(1+\log\sigma^2_{nj}-\mu_{nj}^2-\sigma^2_{nj}\right),\\
+\mathcal{L}&=\mathcal{L}_{\mathrm{rec}}+\beta_e\mathcal{L}_{\mathrm{KL}}+2\mathcal{L}_{\mathrm{CE}},
+\qquad\beta_e=0.0005\min(1,e/10).
+\end{align}
+Cross-entropy uses balanced class weights and label smoothing 0.03. The KL term is averaged across dimensions, so its effective scale differs from a summed per-record KL. During training, samples are stochastic; downstream fitting and inference use $z=\mu$ with the model in evaluation mode. The code can encode and classify without decoding at inference.
+
+The class name \code{CausalVAE} follows the repository and original architectural proposal. A standard-normal factorized prior and a downstream learned DAG do not, by themselves, identify causal variables. In contrast to a fully identified structural causal representation, the implementation has no supervised mapping from $z_j$ to QTc, ST elevation, or another measured physiological variable. Latents remain anonymous coordinates.
+
+\subsection{Optimization and augmentation}
+AdamW uses learning rate 0.001 and weight decay $10^{-4}$; batch size is 64. Gradients are clipped to norm 1.0. A cosine schedule decays toward $10^{-5}$ over the configured 40 epochs. Early stopping monitors validation macro F1, using patience 8 and minimum change $10^{-4}$; best weights are restored. The saved run completed 20 epochs and selected epoch 12. The seed is 42 and the saved configuration specifies CPU execution; elapsed training time and peak training memory were not archived, so throughput claims are omitted.
+
+Each record is selected for augmentation with probability 0.5. Active records may receive multiplicative scaling within $\pm5\%$, Gaussian noise with standard deviation 0.01 times the clean lead standard deviation, sinusoidal baseline wander scaled by 0.02 of that deviation, a zero-filled temporal shift up to 1\% of length, and independent lead dropout probability 0.01. At least one lead is retained. Augmented inputs are reconstructed against the clean normalized target, yielding a denoising training task. The configuration labels these perturbations as mild; no independent clinical preservation study is implied by that description.
+
+\begin{table}[htbp]\centering\small
+\begin{tabular}{lr@{\qquad}lr}\toprule
+Parameter & Value & Parameter & Value\\\midrule
+Leads / rate / duration & 12 / 100 Hz / 10 s & Latent dimension & 64\\
+Encoder width / modules & 96 / 6 & Classifier hidden width & 192\\
+Inception kernels & 15, 7, 3 & Dropout & 0.1\\
+Maximum epochs / batch & 40 / 64 & Selected / completed epoch & 12 / 20\\
+Learning rate / decay & 0.001 / cosine & Weight decay & 0.0001\\
+Maximum KL weight & 0.0005 & Warm-up epochs & 10\\
+Classification weight & 2.0 & Label smoothing & 0.03\\
+Gradient norm limit & 1.0 & Early-stop patience & 8\\\bottomrule
+\end{tabular}
+\caption{Saved internal waveform-model configuration. These values describe the experiment, not recovered original-paper hyperparameters.}\label{tab:hyperparameters}\end{table}
+
+\section{Discrete Bayesian reasoning and explanation}
+\label{sec:bayes}
+\subsection{Quantile states and ordered graph search}
+For each latent coordinate, the discretizer fits thresholds at training-only quantiles 0.2, 0.4, 0.6, and 0.8. An inference value is assigned by right-sided insertion into these four thresholds, producing states 0--4. Thresholds and feature order are serialized. All 64 latent coordinates have training variance above the saved active-unit threshold $10^{-4}$, but nonzero variance is not evidence of disentanglement or clinical meaning.
+
+The network variables are ordered $z_0,\ldots,z_{63},y$. Greedy K2 adds only predecessors as parents, which guarantees an acyclic graph and places diagnosis last. Required prior edges are allowed if they respect the order and parent cap. In this completed study the PTB-XL ontology has no clinician-reviewed causal edges, so the learned dependencies arise from the training data and imposed ordering. Each node has at most five parents. Search uses the Bayesian Dirichlet equivalent uniform score with equivalent sample size $\eta=5$:
+\begin{equation}
+S_i=\sum_{j=1}^{q_i}\left[\log\Gamma(\eta/q_i)-\log\Gamma(\eta/q_i+N_{ij})+
+\sum_{k=1}^{r_i}\left(\log\Gamma(\eta/(q_ir_i)+N_{ijk})-\log\Gamma(\eta/(q_ir_i))\right)\right].
+\end{equation}
+Here $r_i$ is node cardinality, $q_i$ is the number of parent configurations, and $N_{ijk}$ counts training observations. Starting from required edges, the learner repeatedly adds the admissible parent with greatest score improvement until no improvement exceeds $10^{-9}$ or the parent cap is reached. This is an order-constrained greedy search, not a global DAG optimum.
+
+Categorical conditional tables are then estimated with per-cell additive smoothing $\alpha=1$:
+\begin{equation}
+\widehat{P}(v_i=k\mid\mathrm{Pa}_i=j)=\frac{N_{ijk}+\alpha}{N_{ij}+r_i\alpha},\qquad
+P(v_1,\ldots,v_m)=\prod_i P(v_i\mid\mathrm{Pa}_i).
+\end{equation}
+The smoothing convention for final CPTs is separate from the BDeu search prior. Conditioning observed factors, multiplying tables, and summing out hidden variables implement exact variable elimination for $P(y\mid\tilde z)$.
+
+\subsection{Fusion and attribution scope}
+The general internal pipeline allows a validation-selected mixture
+\begin{equation}
+p_{\mathrm{int}}=(1-w_n)p_{\mathrm{BN}}+w_n p_{\mathrm{neural}},\qquad
+p'_{c}=\operatorname{softmax}_c(\log p_{\mathrm{int},c}+b_c).
+\end{equation}
+The released artifact fixes $w_n=1$ and $b_c=0$. External-expert fusion first blends internal neural and external probabilities; the released diagnostic setting assigns external weight~1. Thus the final output probabilities equal the external stack probabilities, within floating-point precision. The Bayesian network still produces a separate explanatory posterior but has zero weight in the released diagnosis.
+
+For a declared diagnosis class $c$, driver importance is the largest absolute change in the scoped posterior when one supported state is substituted:
+\begin{equation}
+I_j=\max_{s\in\mathcal{S}_j\setminus\{\tilde z_j\}}
+\left|p_c(\tilde z)-p_c(\tilde z_{-j},s)\right|.
+\end{equation}
+The output also records the signed difference, best alternative state, and directed graph path. With all latents observed and diagnosis last, only direct parents of diagnosis affect its conditional posterior, so the implementation avoids testing irrelevant fully observed ancestors. Where neural/external weight removes all fused sensitivity, the agent explicitly switches to \code{bayesian_component} scope. It does not assert that changing those coordinates changes the external expert's decision.
+
+\subsection{Single-factor counterfactual search}
+For a requested target $y^*$, the engine enumerates supported alternative states of candidate diagnosis parents while holding all other evidence fixed. It returns an achieving edit if
+\begin{equation}
+\arg\max_c P(c\mid \tilde z_{-j},s)=y^*.
+\end{equation}
+Among achieving candidates it prefers smaller ordinal state movement, then larger target posterior, with deterministic feature/state tie breaking. If no edit changes the winner but some improve the target probability, it returns the best improvement with \code{found=false}. If the target already wins it returns a zero-edit result. The output's edit distance is the number of changed factors (zero or one), whereas ordinal movement is used to rank alternative states.
+
+The worst-case number of edited posterior evaluations is at most $|\mathrm{Pa}(y)|(K-1)$ for $K$ states, excluding the baseline; with a five-parent cap and five bins it is at most 20. The counterfactual belongs to the explicitly selected posterior scope. It is an observational evidence-edit search, not a validated intervention $P(y\mid\operatorname{do}(z_j=s))$, and it does not produce an actionable physical ECG or patient treatment.
+
+\section{Agent coordination, retrieval, and reporting}
+\label{sec:agents}
+\subsection{History and Diagnosis agents}
+The History Agent receives the current latent vector and an optional set of dated reference encodings. If matching patient records exist, it chooses the latest timestamp; otherwise it chooses the nearest latent reference by Euclidean distance and marks the mode as surrogate. With no history the mode is none. It reports the full latent difference and three largest shifts. Callers are responsible for supplying genuinely prior records: choosing the maximum timestamp alone does not establish that the record preceded the current ECG. Surrogate similarity cannot be interpreted as longitudinal change in that patient.
+
+The Diagnosis Agent computes Bayesian and fused probabilities, chooses the highest-probability label, obtains scoped drivers and paths, and optionally requests a counterfactual. The released outputs contain three ranked Bayesian-component drivers per record. The report backbone therefore exposes its own reasoning evidence, while also declaring the separation from the external diagnosis posterior.
+
+\subsection{Diagnosis-aware causal RAG}
+RAG combines retrieval from an explicit corpus with generation~\cite{rag}. Here the completed artifact uses the lightweight TF-IDF implementation rather than the optional sentence-transformer backend. It indexes unigrams and adjacent bigrams with smoothed IDF,
+\begin{equation}
+\operatorname{idf}(t)=\log\frac{1+D}{1+\operatorname{df}(t)}+1,
+\end{equation}
+log-scaled term counts, and $L_2$ normalization. The query is enriched with the original question, named latent states, and the three leading diagnostic hypotheses. Document scores combine cosine similarity and diagnosis metadata:
+\begin{equation}
+s(d,q)=0.8\langle v_d,v_q\rangle+0.2\,s_{\mathrm{metadata}}(d,p).
+\end{equation}
+Documents explicitly tagged with competing diagnostic classes are excluded unless they also match the selected diagnosis. Generic evidence remains eligible. The top five eligible facts with score at least $10^{-8}$ are returned, with source ID, document ID, lexical and structured scores, and matching metadata.
+
+The saved PTB-XL knowledge graph contains 50 ontology nodes and 49 taxonomy edges. These links support retrieval and provenance and are explicitly marked as noncausal. They are not clinician-reviewed physiological priors. The bundled demonstration collection is also not a comprehensive clinical guideline corpus. Even a perfectly cited response may be limited by the underlying corpus or by diagnosis-conditioned exclusion of conflicting evidence; a future evaluation should test confirmation bias and evidence recall directly.
+
+\subsection{Response construction and alternative generators}
+The Response Agent assembles fields for the question, temporal context, predicted label, posterior, driver states, attribution scope, requested counterfactual, and numbered retrieved facts. It instructs the generator to preserve the supplied diagnosis, cite each factual claim, and avoid unobserved waveform findings. The deterministic template is the generator behind the reported completed classification run. It makes output replayable but does not measure open-ended LLM reasoning quality.
+
+Optional local Hugging Face and API-backed generators are implemented. Their checkpoint/model, decoding settings, access, knowledge corpus, and privacy eligibility would need to be fixed for a new experiment. The configurable model string in the saved YAML is not proof that that API model was called: the saved backend is \code{template}. No reported result here is attributed to a newly run LLaMA or API experiment.
+
+\subsection{Verification, fallback, and abstention}
+The first check measures how many retrieved facts are reflected in the report:
+\begin{equation}
+\mathrm{HR}=1-\frac{1}{|R|}\sum_{r\in R}\mathbb{1}[\operatorname{match}(r,e)],
+\end{equation}
+with HR~1 for no facts. Matching combines 0.7 token containment and 0.3 sorted-token sequence similarity, taking the best sentence match and thresholding at 0.32. This is primarily retrieved-fact recall, despite the name hallucination risk. Repeating every supplied fact can yield HR~0 even with a wrong diagnosis or an added false assertion.
+
+The complementary unsupported-claim rate segments the report, ignores specified nonclinical prefixes, parses fact citations, and checks lexical support for each remaining sentence against its cited facts. It is a support proxy, not entailment or medical truth. The response is flagged when HR exceeds 0.5 or unsupported-claim rate exceeds zero. With fallback enabled, a second draft omits the causal factors. If that still fails, an evidence-only rendering is produced and the abstention state is recorded. Audit outputs retain both drafts, scores, fallback use, and abstention. No verifier can establish that the model-predicted diagnosis is correct simply because its associated facts are repeated faithfully.
+
+\section{Locked diagnostic stack and model selection}
+\label{sec:stack}
+\subsection{External probability sources and alignment}
+The final classifier uses three replacement sources derived from the legacy PTB-XL benchmark repository~\cite{benchmark}. They are not recovered author checkpoints from CARE-ECG. The sources are (i) an SCP-aware HistGradientBoosting meta-model, (ii) official XResNet1D-101 exp0 SCP outputs collapsed to the five-class contract, and (iii) a legacy XResNet1D-50 checkpoint adapter. Each table includes probability rows, exact record IDs, and label order. Missing or repeated record IDs, nonfinite values, negative entries, incompatible labels, or misaligned rows are rejected. Legacy pickle-bearing arrays and serialized estimators are authenticated by SHA-256 before loading.
+
+For the superclass adapter, scores of SCP codes mapping to each superclass are summed and the resulting five scores normalized. These are derived scores; they are not a learned categorical diagnosis head from the original paper. The SCP meta-model uses the original 71 code scores plus five aggregates per superclass: sum, maximum, mean, noisy-OR, and maximum logit. This yields 96 features. HistGradientBoosting uses 150 iterations, learning rate 0.07, at most 31 leaves, minimum leaf size 20, $L_2$ penalty~3, and square-root balanced sample weights, without internal early stopping.
+
+\subsection{Multinomial stack objective and cross-fitting}
+For three sources and five classes, the stack uses 15 concatenated log-probability features. Each feature is centered and scaled using the stack-fitting subset. The model is
+\begin{equation}
+u=[\log p^{(1)},\log p^{(2)},\log p^{(3)}],\quad
+\bar u_j=(u_j-m_j)/(s_j+10^{-6}),\quad
+p_{\mathrm{stack}}=\operatorname{softmax}(\bar uW+a).
+\end{equation}
+The optimizer minimizes weighted multinomial cross-entropy plus $\lambda\operatorname{mean}(W^2)$ with class weights $(N/(5n_c))^\rho$. It uses float64 LBFGS, at most 300 iterations, with zero-initialized weights and prevalence-initialized intercepts. The selected coefficient $\lambda=1.0$ is the direct penalty coefficient, not the inverse-C parameter used by some logistic-regression packages; $\rho=0.375$.
+
+Five patient-grouped partitions of fold~9 produce stacker out-of-fold predictions. The base sources remain fixed; only the stacker is cross-fit. Hyperparameters maximize pooled OOF macro F1, breaking ties by accuracy. The same OOF values are used for selection and reporting, so they are selection estimates with optimism from reuse and base-expert validation history. They are not independent nested estimates of the complete workflow.
+
+\subsection{Freeze, refit, and prior-test disclosure}
+The selection lock froze source order, regularization, class weighting, and exact zero post-selection class offsets before inference for the current fold-10 candidate. After selection, the SCP meta-model was refit on folds~1--9. Its reported validation values still refer to the original folds-1--8 fit. This standard deployment refit changes the distribution supplied to a stack selected from earlier out-of-sample outputs, an additional source of validation-to-test shift.
+
+The finalizer verifies artifact hashes, re-evaluates the stack from the aligned source tables, and saves provenance and zero offsets. The maximum discrepancy between final and supplied expert probabilities in the archived run is about $3.02\times10^{-8}$; the expert argmax is preserved. Prediction bookkeeping appends expected labels after model execution rather than supplying them to the decision method.
+
+The lock also states that aggregate fold-10 performance from an earlier repository system was already known. Thus the current candidate was frozen before its evaluation, but fold~10 is not globally untouched. This report uses ``fixed-candidate fold-10 evaluation'' for that reason and avoids presenting the entire model-development process as a pristine first use of the test set.
+
+% Remaining sections are included as a separate editable source file.
+\input{experiments_results.tex}
+\input{appendices.tex}
+\end{document}

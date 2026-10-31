@@ -72,6 +72,7 @@ from .defenses import (
     hash_waveform,
     matched_coverage_threshold,
 )
+from .evolution import EvolutionConfig, evolve
 from .experiments import (
     CleanBaselineRun,
     CohortCase,
@@ -98,6 +99,7 @@ from .experiments import (
     run_e7,
     run_e7_authenticated_history_stress,
 )
+from .learned import DPOAdaptiveAttack, DPOVerifier
 from .logging import (
     AppendOnlySecurityLogger,
     LogReceipt,
@@ -146,6 +148,7 @@ from .objectives import (
     targeted_margin_loss,
     targeted_nll,
 )
+from .preferences import PreferencePair, PreferencePolicy, dpo_loss, fit_dpo
 from .robustness_metrics import (
     AutomatedAttackMetrics,
     WaveformDistortion,
@@ -182,9 +185,12 @@ __all__ = [
     "ConstraintKind",
     "CounterfactualAlignment",
     "CounterfactualGuidedAttack",
+    "DPOAdaptiveAttack",
+    "DPOVerifier",
     "DefenseKind",
     "E5CalibrationCase",
     "EligibleCase",
+    "EvolutionConfig",
     "ExperimentObservation",
     "ExperimentRun",
     "F0RandomAttack",
@@ -213,6 +219,8 @@ __all__ = [
     "ObjectiveTerms",
     "PGDAttack",
     "PhysiologicalConstraint",
+    "PreferencePair",
+    "PreferencePolicy",
     "PreservationVerificationReceipt",
     "QueryBudgetExceeded",
     "QueryTrace",
@@ -249,9 +257,12 @@ __all__ = [
     "counterfactual_alignment",
     "counterfactual_feature_state",
     "coverage",
+    "dpo_loss",
+    "evolve",
     "extract_target_claim",
     "extract_target_claims",
     "false_rejection_rate",
+    "fit_dpo",
     "hash_waveform",
     "incorrect_release_at_budget",
     "incorrect_release_rate",

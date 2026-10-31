@@ -1,0 +1,213 @@
+\section{Feedback-adaptive v2: method and validation study}
+\label{sec:adaptivev2}
+\subsection{Motivation and version boundary}
+The historical locked experiments above used the earlier F3 objective and optimizer. A later engineering extension, \code{adaptive_v2}, attempts to increase exact-target and released-target-claim success while retaining the waveform contract, comparator implementations, and complete-system query accounting. The Python constructor retains \code{legacy} as its default for existing callers; the current full-patient security configuration explicitly selects v2 for K2/K3. K1 has decision-only access and cannot select this differentiable optimizer. All v2 results in this section are from a new fold-9 development study, not a revision of the archived held-out experiment.
+
+The extension addresses three observable difficulties. A clipped diagnostic margin can cease providing target-directed gradients; fixed auxiliary weights can oppose acquisition of the requested diagnosis; and a fixed step size can oscillate or stall near a feasible optimum. It changes the composite objective, momentum, step adaptation, and restart policy together. Consequently its comparison estimates a recipe effect, not the isolated causal contribution of any one modification.
+
+\subsection{Composite target and evidence objective}
+Let $p_c(u)$ be the differentiable surrogate's class probability at perturbed waveform $u=x+\delta$. V2 minimizes
+\begin{align}
+ L_{\mathrm{diag}}^{(2)}(u)&=
+ \left[\max_{c\ne y^*}\log p_c(u)-\log p_{y^*}(u)+\kappa\right]_+
+ -\log p_{y^*}(u),\\
+ L^{(r)}(u)&=w_dL_{\mathrm{diag}}^{(2)}(u)+
+ \widetilde w_R^{(r)}L_R(u)+\widetilde w_V^{(r)}L_V(u)
+ +\widetilde w_D^{(r)}L_D(u).
+\end{align}
+The second term in the first line is target negative log likelihood. It continues to favor the target when the clipped margin becomes zero. $L_R$, $L_V$, and $L_D$ are the existing retrieval, report-verifier, and optional defense surrogates. Their differentiability does not make their values complete-pipeline success labels.
+
+At the beginning of restart $r$, only actual previously queried snapshots determine the phase. Before a target prediction has been observed, auxiliary weights are multiplied by 0.1. If an observed target prediction is rejected, verifier and defense weights are doubled relative to their configured values. Otherwise configured weights are used. The diagnostic coefficient is unchanged. The best available feedback snapshot is chosen lexicographically by target diagnosis and then target probability. Independent clinical-preservation judgments and evaluator-only clinical success labels are never inputs to phase selection or stopping.
+
+\subsection{Projected momentum, step reduction, and real feedback}
+For the amplitude constraint the search uses
+\begin{align}
+ m_{t+1}&=0.75m_t+
+ \frac{\nabla_uL^{(r)}(u_t)}{\operatorname{mean}(|\nabla_uL^{(r)}(u_t)|)+\varepsilon_0},\\
+ u_{t+1}&=\Pi_{x+\mathcal S}\!\left(u_t-\alpha_t\operatorname{sign}(m_{t+1})\right).
+\end{align}
+Here $\varepsilon_0$ denotes numerical protection; code clamps the denominator at $10^{-12}$. For the $L_2$ implementation, gradient and momentum directions instead use global $L_2$ normalization. Spectral projection additionally enforces the declared energy and slew conditions. The initial step is $\max(0.002,2\epsilon)=0.04$~mV at $\epsilon=0.02$~mV. A step larger than the radius is still followed by projection; this is an optimization choice, not permission to submit an invalid waveform.
+
+Checkpoints occur every $\max(2,\lfloor S/10\rfloor)$ iterations, where $S$ is the configured number of steps. If the best loss has not improved by more than $10^{-12}$, or fewer than 75\% of steps improved the immediately preceding loss, the step is halved, the candidate is restored to the best iterate, and momentum is reset. This is a custom optimizer inspired by Auto-PGD~\cite{autopgd}; it is not the reference AutoAttack implementation or its full attack ensemble.
+
+Fresh starts alternate with refinement of an actually submitted incumbent when multiple restarts are available. Warm restarts add seeded jitter within one quarter of the perturbation radius; fresh starts use the full radius. Within a restart, the minimum composite-loss iterate is selected. Across restarts, selection uses a consistent actual-snapshot feedback score, because differently weighted phase objectives cannot be compared directly. A released target claim stops observable search; clinical success remains an independently scored outcome.
+
+Each restart submits at most one selected waveform to the full pipeline. Every such submission consumes the common budget, including rejected and invalid attempts. Surrogate forwards and backwards are separately counted, including the initial access-availability probe. With 40 steps, v2 evaluates the surrogate before and after updates as well as at initialization; equal step counts do not imply equal forward counts or equal wall-clock cost across algorithms. The one-query comparison below therefore fixes expensive complete-system submissions and gradient steps, not total floating-point operations. At $B=1$ there is no later queried restart from which to adapt: the measured benefit can arise from the objective and within-restart optimizer, while multi-query feedback repair remains unisolated.
+
+\subsection{Controlled development experiment}
+The first pilot used ten clean-correct patients from a 30-candidate fold-9 pool, seed~42, budgets 1 and 3, and the two amplitude/spectral constraints. PGD, F1-CF, and v2 K2/K3 tied exact-target success at 20\% under the amplitude constraint and 10\% under the spectral constraint. Target probabilities improved without an additional exact-target hit. These pilot results motivated examination of the remaining clean-correct patients in that same initial pool.
+
+The expanded comparison includes \emph{all 19 clean-correct patients among those 30 candidates}, one first ECG per patient, target T1 (MI to NORM), V1, seed~42, and $B=1$. Every arm uses exactly the same patient, record, target, seed, budget, and defense keys. Nine attacks, two constraints, and 19 patients give 342 E1 observations and 342 full submissions. Thirty E0 clean calls bring the waveform-artifact count to 372; the sealed event log contains 714 records and is reported valid and complete. Every selected submission satisfies its declared numerical constraint.
+
+The amplitude limit is 0.02~mV. The spectral condition adds per-lead perturbation energy above 40~Hz at most 0.05 of total perturbation energy and adjacent-sample perturbation change at most 0.01~mV. Gradient methods use 40 steps; comparison methods retain their own optimizers. $B=1$ strongly restricts black-box finite-difference or decision searches. Zero success for those methods at this budget should not be extrapolated to larger budgets or interpreted as proof that they are intrinsically weaker.
+
+\begin{table}[htbp]\centering\scriptsize
+\input{tables/adaptive_v2.tex}
+\caption{Expanded v2 validation outcomes. All cells contain 19 patients. ``Hits'' and percentages denote exact-target diagnosis, which equals released-target-claim success in this run. ``Any'' counts any wrong diagnosis. Amp and Spec refer to the amplitude and spectral constraint, respectively.}
+\label{tab:adaptivev2}\end{table}
+
+\fig{adaptive_v2}{1.0}{All nine attacks on identical validation cases. Targeted and untargeted outcomes are plotted separately. These are automated internal-victim outcomes; no clinical primary success estimate is available. The plots display observed rates, not independent replication or simultaneous confidence bounds.}
+
+\subsection{Results, paired uncertainty, and interpretation}
+V2 K2 and K3 each obtain 5/19 amplitude-constrained target successes (26.32\%), compared with 4/19 for PGD and F1-CF (21.05\%). The difference is one additional patient, or 5.26 percentage points. All four gradient attacks have 2/19 spectral target successes (10.53\%). The result is therefore a small, target-specific validation gain with a spectral tie.
+
+Untargeted outcomes show a different ordering: amplitude PGD misclassifies 11/19 patients, compared with 10/19 for v2 and 8/19 for F1-CF. Spectral untargeted success is 6/19 for v2 and 5/19 for PGD/F1-CF. Targeted success cannot be substituted for general misclassification, and the v2 name alone does not imply superiority on every endpoint.
+
+\begin{table}[htbp]\centering\small
+\input{tables/adaptive_v2_paired.tex}
+\caption{Paired target-ASR differences against PGD. Nominal percentile intervals use 10,000 patient resamples and seed 42; all arms remain paired on each resample. They are pointwise development intervals with no multiplicity correction.}
+\label{tab:adaptivepaired}\end{table}
+
+The amplitude interval includes zero. The spectral interval collapses to zero because paired target indicators agree on this small observed sample; it is not a population equivalence bound. K2 and K3 produce the same measured target rates in this configuration. The pilot and expanded study share a candidate pool, and settings were developed on validation. Neither constitutes independent held-out confirmation. No new held-out v2 run, all-patient v2 run, clinical primary evaluation, or component ablation is supplied by these artifacts.
+
+\section{Finite-action DPO and bounded attacker--verifier co-evolution}
+\label{sec:dpomethods}
+\subsection{Trainable objects and fixed components}
+The new learning layer contains two small contextual categorical policies: an attacker recipe selector and a report-release verifier. Both use a frozen-reference Direct Preference Optimization loss~\cite{dpo}. The learned objects are linear policy weights and biases, not language-model token weights, the ECG classifier, Bayesian CPTs, retrieval documents, or Python source. The loop recursively collects new experience and proposes policy updates under explicit round and query limits. It supplies no claim of open-ended self-improvement or guaranteed convergence.
+
+For role $r$, feature vector $\phi_r(s)$, and finite action set $\mathcal A_r$, the policy is
+\begin{equation}
+ \pi_{\theta_r}(a\mid s)=
+ \frac{\exp\{[W_r\phi_r(s)+b_r]_a\}}
+ {\sum_{a'\in\mathcal A_r}\exp\{[W_r\phi_r(s)+b_r]_{a'}\}}.
+\end{equation}
+Weights and biases use float64 for the tiny CPU-trained controllers. Runtime selection is greedy. The five-class configuration has 27 attacker features and three actions (84 scalar parameters), and 16 verifier features and two actions (34 parameters). This capacity is sufficient to demonstrate preference learning while being substantially more restricted than a general report-generating policy.
+
+The attacker action catalog is fixed: \code{adaptive_v2} with momentum 0.75, \code{v2_no_momentum} with momentum zero, and \code{legacy} with momentum zero. An action can alter the search version and momentum but cannot override perturbation radius, norm, complete-system budget, gradient-step count, or restart count. The selector chooses one recipe before an episode and delegates actual waveform optimization to F3. It does not evaluate three full episodes at deployment and present the best as a one-query attack.
+
+The verifier actions are \code{release} and \code{reject}. Its learned probability adds a veto to the existing verifier:
+\begin{equation}
+ \operatorname{release}(s)=\operatorname{release}_{\mathrm{base}}(s)
+ \land \left[\pi_{\theta_V}(\mathrm{reject}\mid s)\leq0.5\right].
+\end{equation}
+It cannot reverse a base rejection or manufacture missing evidence. Missing waveform context forces rejection with unavailable-evidence status. The default attacker prior uses zero weights and a bias of 1 for its preferred v2 recipe; the verifier uses zero weights and a release bias of 4. These priors are incumbents until a candidate passes validation.
+
+\subsection{Features and information boundaries}
+Both roles receive five diagnosis probabilities and eleven structured summaries. Seven summaries are computed from probabilities and the current raw-mV waveform: normalized entropy, the top-two probability margin, transformed waveform mean, RMS, standard deviation, absolute peak, and temporal-difference RMS. Four summaries come from the last actually observed report: hallucination score, unsupported-claim score, fallback indicator, and abstention indicator.
+
+If the number of classes is $K$, the main transforms are
+\begin{align}
+ H(p)&=-\sum_c p_c\log p_c/\log K, & M(p)&=p_{(1)}-p_{(2)},\\
+ f_{\mu}(x)&=\tanh(\operatorname{mean}(x)/0.25), &
+ f_{\mathrm{RMS}}(x)&=\log(1+\operatorname{RMS}(x)/0.25),\\
+ f_{\Delta}(x)&=\log(1+\operatorname{RMS}(\Delta_t x)/0.02).
+\end{align}
+RMS and variance calculations add $10^{-12}$ under square roots to ensure finite gradients at constant or zero signals. Standard deviation and peak use the same $\log(1+u/0.25)$ scaling. These are generic signal summaries, not independently validated clinical measurements. The attacker additionally receives a target one-hot vector, $\log(1+B)/\log(101)$, $\epsilon/0.02$, and four constraint-family indicators.
+
+Reference diagnosis, patient and record identifiers, split/fold, and evaluator success labels are absent from both feature vectors. Patient identity is used only for split checks and preference weighting. Reference diagnoses are teacher-only inputs to preference construction. This boundary avoids direct answer leakage into the learned context but does not make a diagnosis-label teacher equivalent to clinical report adjudication.
+
+The differentiable gate surrogate is $-\log\pi_{\theta_V}(\mathrm{release}\mid\phi_V)$, minimized by an adaptive attacker. Waveform and probability features retain gradients. The four report-risk features are held at the last real snapshot because the text-generation and lexical-check path is not differentiable. Actual report release, rather than surrogate release probability, remains the outcome oracle. The surrogate is therefore an approximation of the gate that must be rechecked through real submissions.
+
+\subsection{Fresh training experience and preference construction}
+Every round collects fresh training rollouts against the current frozen verifier. All matching records are retained by default. Cases with an already incorrect clean diagnosis contribute verifier preferences but do not enter a clean-correct attack episode. For each clean-correct training context, up to three recipes are explored in separate budgeted episodes. The incumbent's greedy action is first, followed by round-dependent exploration. Every recipe uses the same declared threat settings and is checked for query compliance and constraint membership.
+
+For attacker recipe $a$, the collection score is
+\begin{equation}
+ S_A(a)=2\,\mathbb{1}\{\text{a queried report is released and contains the target claim}\}
+ +0.1\max_q p_{y^*}(x+\delta_q).
+\end{equation}
+Released-target evidence dominates probability alone because the probability term is bounded by 0.1. Each unordered action pair with score gap greater than $10^{-5}$ yields a chosen/rejected preference; ties are omitted. The probability term supplies training information even when no recipe attains an exact target. It must not be relabeled as a measured attack-success event. This score is a preference-construction heuristic; no separate learned reward model is fitted.
+
+For the verifier, every actually queried clean or perturbed snapshot supplies a label-proxy preference. If the predicted diagnosis equals the case's projected reference diagnosis, the preferred action is release; otherwise it is reject. This supervision is independent of the learned verifier's existing verdict. It includes wrong reports that were released and wrong reports that were rejected, so the verifier cannot define its own ground truth merely by changing its action. However, the teacher judges diagnosis only: it does not assess all claims, clinical omission, preserved pathology, or appropriateness of a full clinical report. Artifacts explicitly label it \code{automated_nonclinical_diagnosis_proxy}.
+
+Collection cost is recorded in addition to deployed-episode cost. Three recipes at $B=1$ are up to three real attack submissions per clean-correct context plus the clean call. They are training exploration, not a claim that three optimized candidates were available within a single-query deployment budget. Gradient work is also distinct from pipeline submissions.
+
+\subsection{Patient-balanced frozen-reference DPO}
+Let preference $i$ contain $(\phi_i,a_i^+,a_i^-,p_i)$ with patient identity $p_i$. At generation $g$, the parent policy $\pi_g$ is copied and frozen as reference. For candidate $\pi_\theta$ define
+\begin{align}
+ d_i(\theta)&=\log\pi_\theta(a_i^+\mid\phi_i)-\log\pi_\theta(a_i^-\mid\phi_i),\\
+ \ell_i(\theta)&=-\log\sigma\!\left(\beta[d_i(\theta)-d_i(g)]\right),\\
+ \mathcal L_{\mathrm{DPO}}(\theta)&=\sum_i w_i\ell_i(\theta).
+\end{align}
+Reference log probabilities are detached; the parent is not modified by training. When candidate and reference coincide, each pair has loss $\log2\approx0.693147$, independent of the parent bias. The objective optimizes a policy-relative action preference. Absolute chosen-action probability, training preference accuracy, and validation attack success are distinct quantities.
+
+Identical preference records are deduplicated before fitting. Training pairs are sorted by the parent preference margin; an optional explicit cap can retain the hardest pairs. The default cap is absent. To keep patients with more ECGs or queried snapshots from dominating, the hardness and normalized weights are
+\begin{equation}
+ h_i=1+\sigma(-d_i(g)),\qquad
+ w_i=\frac{1}{P}\frac{h_i}{\sum_{j:p_j=p_i}h_j},
+\end{equation}
+where $P$ is the number of patients with retained preferences. Each patient contributes total mass $1/P$; difficult pairs receive greater weight within that patient's mass. Validation labels are not passed to this fitting function.
+
+Adam uses learning rate 0.03, $\beta=0.5$, full retained preference batches, and gradient-norm clipping at 1. Default training is 80 epochs; the measured development run used 40. The fitter retains the best training-loss state only when loss improves by more than $10^{-12}$. This is training-loss selection, not validation promotion. Training preference accuracy is the unweighted fraction of retained pairs for which the chosen action has greater probability than the rejected action.
+
+\subsection{Generation loop, validation metrics, and promotion}
+Training requires folds 1--8, validation requires fold 9, and patient and record IDs must be disjoint. Fold 10 is refused by the evolution command. Defaults use all matching patients and their matching records; the small measured study declares explicit caps. A round performs fresh collection, fits both candidates against their own frozen parent, and evaluates three arms on separate validation patients: $(A_g,V_g)$, $(A'_g,V_g)$, and $(A_g,V'_g)$. Attacks are freshly optimized against the candidate verifier's differentiable surrogate. Comparisons hold the opposing incumbent fixed rather than attributing a simultaneous opponent change to one role.
+
+Validation metrics first average repeated observations within patient, then average patients with observations for that endpoint. Released-target ASR is conditional on a correct clean diagnosis. Diagnosis-proxy false release uses all actually queried wrong diagnoses, including wrong clean reports, rather than only the final selected attack. Correct-clean coverage uses clean snapshots with the correct diagnosis. Their eligible patient sets can differ, so the number of all validation cases is not an interchangeable denominator for all three metrics.
+
+With default minimum improvement $\eta=10^{-4}$, attacker promotion requires
+\begin{equation}
+ \operatorname{ASR}(A'_g,V_g)\geq\operatorname{ASR}(A_g,V_g)+\eta.
+\end{equation}
+Verifier promotion requires decreased diagnosis-proxy false release while preserving correct-clean coverage:
+\begin{align}
+ F(A_g,V'_g)&\leq F(A_g,V_g)-\eta,\\
+ C(A_g,V'_g)&\geq0.90,\qquad
+ C(A_g,V'_g)\geq C(A_g,V_g)-0.02.
+\end{align}
+Missing, nonfinite, or out-of-range validation metrics prevent promotion. A reject-everything verifier fails the coverage floor. These are empirical selection rules, not significance tests or guarantees of patient-level population benefit. With a small cohort, the numerical improvement threshold is much smaller than the resolution of a single changed patient.
+
+If both candidates pass, their joint pair is also evaluated. Opposing objectives mean that separately improving against frozen opponents does not ensure simultaneous improvement of joint outcomes. Promoted policies become the next generation's parents; rejected candidates roll back to incumbents. The loop stops after the configured round limit or a patience limit of successive rounds without either promotion (defaults three and two, respectively). Reusing fold 9 for generations is development selection, not independent confirmation.
+
+\begin{figure}[htbp]\centering
+\begin{tikzpicture}[>=Latex,node distance=6mm and 9mm,
+ b/.style={draw=teal!70,rounded corners,fill=teal!5,align=center,text width=64mm,minimum height=16mm,font=\small}]
+ \node[b] (parents) {Validated parents $(A_g,V_g)$\\freeze both references};
+ \node[b,below=of parents] (collect) {Fresh folds-1--8 rollouts\\separate budgeted recipe episodes};
+ \node[b,below=of collect] (fit) {Diagnosis-proxy preferences\\patient-balanced DPO for both roles};
+ \node[b,right=of fit,fill=orange!7,draw=orange!70] (validate) {Disjoint fold-9 validation\\baseline and two fixed-opponent arms};
+ \node[b,above=of validate] (select) {Promotion and coverage guards\\accept candidate or retain incumbent};
+ \draw[->] (parents)--(collect);\draw[->] (collect)--(fit);\draw[->] (fit)--(validate);
+ \draw[->] (validate)--(select);\draw[->] (select.north) |- (parents.east);
+\end{tikzpicture}
+\caption{Bounded policy co-evolution. The return path uses selected incumbents; completing optimization does not imply automatic deployment of the candidate. Fold 10 is outside this loop.}
+\label{fig:evolution}\end{figure}
+
+\subsection{Checkpoint contracts and reproducible deployment}
+Policies use JSON checkpoints containing feature names, action order, role, class-label order, weights, biases, and a functional policy SHA-256. Shape and finite-value checks precede deployment. The full checkpoint-file SHA-256 is separate from the functional hash, so metadata changes are also detectable when files are bound into a protocol. Expected labels and victim-model identity are checked; metadata can bind a checkpoint to its trained victim model tree.
+
+The existing security runner loads policy files once, applies the learned verifier to every selected attack arm, and uses the learned attacker for a configured F3 arm. Both full-file and functional hashes are stored in the resolved protocol and validation lock. A held-out replay must match the locked identities; replacing a checkpoint or omitting a configured binding is rejected. This documents the current corrected binding implementation. An earlier development lock omitted the new field and is not used as the verified integration evidence here.
+
+Each generation writes references, preferences, candidate checkpoints, evaluation, collection counts, and sealed query evidence to a new output directory. Only a completed, seal-verified run exports its final validated incumbents with completed status; failures retain an incomplete manifest and error. Trained candidate files and exported incumbents are separate artifacts. The learned wrapper supports experimental E1 execution; its existence does not satisfy E5's existing exact-built-in-attack attestation or establish a matched-coverage clinical defense comparison.
+
+\section{DPO development experiments and observed results}
+\label{sec:dporesults}
+\subsection{Executed protocol and cohort}
+The verified run used the existing internal PTB-XL victim, the amplitude constraint at 0.02~mV, T1 only, seed~42, and explicit limits of six training and six validation patients. All matching records for those patients were retained: seven training ECG/target cases and nine validation cases, with no patient overlap. Training uses folds 1--8 and validation fold 9. The run completed two rounds, eight gradient steps per attack, one query per recipe episode, one restart, three collection recipes, and 40 DPO epochs with $\beta=0.5$ and learning rate 0.03. These settings deliberately establish execution and audit behavior at small scale; they are not the uncapped default experiment.
+
+\begin{table}[htbp]\centering\scriptsize
+\input{tables/dpo_fit.tex}
+\caption{Actual frozen-reference DPO fitting in the two-round development run. Preference accuracy is a training-pair statistic, not diagnostic accuracy or validation ASR. ``Best'' denotes the restored lowest patient-balanced training loss. No candidate was promoted.}
+\label{tab:dpofit}\end{table}
+
+Attacker fitting uses 14 preferences from four training patients per round; verifier fitting uses 22 preferences from six patients. The other patients do not necessarily supply a non-tied attacker action comparison. Attacker loss decreases from 0.693147 to 0.105057 in both rounds. Verifier loss decreases to 0.421950 and 0.405486. The report independently reconstructs these four final losses from the archived feature vectors, reference/candidate checkpoints, and patient/hardness weights, without training any policy. The reconstructed values agree within $10^{-9}$.
+
+\fig{dpo_training}{1.0}{Saved training-loss trajectories, including the initial $\log2$ state. Round-1 and round-2 attacker curves overlap. Lower training loss establishes optimization of the preference objective; it does not establish validation improvement. Curves are from the frozen run artifacts, not synthesized example data.}
+
+\subsection{Validation, non-promotion, and stopping}
+Every validation arm in both rounds has released-target ASR 0\%, diagnosis-proxy false release 100\%, and correct-clean coverage 100\%. Each arm makes 15 full pipeline calls: nine clean calls and six attack submissions for the six clean-correct ECG cases. Three queried snapshots have incorrect diagnoses; these were wrong clean reports rather than successful target attacks in this small run. The 100\% false-release metric is conditional on those wrong snapshots and averaged by patient; it is not a false-positive rate over all nine cases or a prospective population estimate.
+
+\begin{table}[htbp]\centering\scriptsize
+\input{tables/dpo_validation.tex}
+\caption{Separate fold-9 development validation of incumbents and candidates. Target is released-target-claim ASR, false release is the diagnosis-only proxy on wrong queried diagnoses, and coverage is correct-clean release. The baseline and each candidate are compared against the same opposing incumbent. All arms contain nine cases from six patients.}
+\label{tab:dpovalidation}\end{table}
+
+The attacker cannot pass its strict improvement rule when target ASR remains zero. The verifier retains clean coverage but cannot pass when false release is unchanged at one. Both roles therefore receive \emph{no validated gain}; no candidate is promoted in either round, and the two-round patience rule stops the loop. The exported \code{attacker.json} and \code{verifier.json} remain the initial validated priors. The round-specific candidate checkpoints contain genuinely changed weights and are retained for inspection. Describing those exported priors as an improved trained deployment would misstate the selection outcome.
+
+Each round uses 22 collection calls plus three 15-call validation arms, or 67 waveform calls. Two rounds account for 134 waveform artifacts. The sealed training log has 136 records, including round records, and verifies complete. These costs expose the additional training exploration and validation work instead of hiding it inside the one-query per-recipe budget.
+
+Training preference accuracy also requires care. The attacker reaches 92.86\%; verifier accuracy is 63.64\% in round 1 and 59.09\% in round 2. The latter decreases while weighted relative-preference loss falls further, because hardness weighting, parent-relative margins, and unweighted absolute preference accuracy measure different properties. None of these training statistics alone supplies evidence of a better report gate on independent patients.
+
+\subsection{Trained-candidate runtime integration}
+A separate integration check explicitly loads the trained round-1 attacker and verifier candidates into \code{security-run}; it does not replace the selected incumbent files. The check runs PGD and learned F3 K3 on the same four eligible ECG cases from two selected patients, using T1, seed~42, $B=1$, the amplitude constraint, four gradient steps, and one restart. Nine candidate clean cases are examined. Eight E1 attack submissions plus nine E0 calls yield 17 waveform artifacts; the sealed log contains 25 records and verifies complete.
+
+Both arms have zero target and zero untargeted successes in this four-case check, and all eight selected attack submissions satisfy the amplitude constraint. These counts are integration results, not a powered comparative study.\par
+
+Both trained checkpoint file hashes and both functional policy hashes are present in the final corrected validation lock. The report checks them against the actual candidate files and verifies that the lock binds the runtime-result digest. This establishes checkpoint loading, real queries, audit continuity, and protocol binding. It does not establish that the candidates beat their incumbents or pass the co-evolution promotion rules. The classifier, clinical primary eligibility rules, and label teacher remain the same.
+
+\subsection{What these experiments establish and what remains open}
+The completed experiments demonstrate two-role preference optimization, patient-disjoint collection and selection, a functioning adaptive gate surrogate, real waveform attack execution, explicit collection cost, rollback, patience stopping, and checkpoint-bound E1 replay. They provide a negative performance finding: the tested DPO candidates did not improve the declared validation metrics. This finding belongs in the results alongside loss reductions.
+
+No uncapped full-patient DPO run, multi-seed DPO learning study, independent held-out DPO comparison, clinician preference collection, token-level LLM DPO, or recursive classifier training was executed. A larger study should predefine both endpoint-specific patient denominators, collection budgets, action coverage, fresh validation or nested selection, independent test isolation, and coverage-matched defense evaluation. Include frozen-prior, supervised action-classification, unweighted DPO, no-hardness, single-round, fixed-recipe, and separately trained-role controls to determine whether any eventual gain arises from the DPO objective, data collection, action selection, or gate capacity. These are proposed experiments, not rows with invented outcomes.
+
+\clearpage

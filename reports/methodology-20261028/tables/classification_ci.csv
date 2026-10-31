@@ -1,0 +1,5 @@
+Metric,Estimate (%),Patient-cluster 95% CI (%)
+Accuracy,76.83,75.02--78.65
+Macro precision,68.87,65.91--71.77
+Macro recall,67.74,64.88--70.66
+Macro F1,68.25,65.45--70.90

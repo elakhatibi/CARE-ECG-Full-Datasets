@@ -1,0 +1,3 @@
+Released minus comparator,Accuracy delta (pp),Macro F1 delta (pp)
+Previous repository,"+3.34 [+1.93, +4.72]","+5.71 [+3.34, +8.13]"
+Waveform specialist,"-0.14 [-0.74, +0.46]","+0.19 [-0.82, +1.33]"

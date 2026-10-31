@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-28",
+  "test_command": ".venv/bin/python -m pytest -q",
+  "test_exit_code": 0,
+  "tests_collected": 277,
+  "subtests": 103,
+  "subtest_count_source": "attack_models/DPO_EVOLUTION_VALIDATION.md (same current source snapshot)",
+  "collection_command": ".venv/bin/python -m pytest --collect-only -o addopts='' -q",
+  "collection_exit_code": 0,
+  "test_log_sha256": "1df554216a99a3c37063aa3222dba64783a3a86611c29216b1ed31df9abf25b0",
+  "static_checks": "ruff on both report evidence builders; git diff --check",
+  "scope": "Current implementation checks, separate from historical model-performance evidence."
+}

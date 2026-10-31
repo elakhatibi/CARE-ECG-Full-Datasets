@@ -1,0 +1,29 @@
+schema_version: care-ecg-evolution-config.v1
+
+protocol:
+  targets: [T1, T2, T3, T4]
+  records_per_patient: all
+  max_train_patients_per_target: null
+  max_validation_patients_per_target: null
+
+evolution:
+  rounds: 3
+  patience: 2
+  beta: 0.5
+  dpo_epochs: 80
+  learning_rate: 0.03
+  max_pairs: null
+  query_budget: 1
+  collection_actions: 3
+  steps: 40
+  restarts: 1
+  step_size_mv: 0.002
+  confidence: 3.0
+  seed: 42
+  min_improvement: 0.0001
+  min_clean_coverage: 0.90
+  max_coverage_drop: 0.02
+
+constraint:
+  name: s_inf
+  epsilon_mv: 0.02

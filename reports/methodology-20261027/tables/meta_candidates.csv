@@ -1,0 +1,18 @@
+Candidate,Standalone F1 (%),Added-stack F1 (%)
+hist_bal0375,68.33,69.62
+hist_shallow,68.38,69.57
+hist_deep,68.59,69.44
+hist_rich,68.16,69.48
+extra_leaf2_w0375,67.89,69.09
+extra_leaf4_w05,67.63,69.05
+extra_sqrt_leaf1_w025,66.26,68.95
+rf_sqrt_leaf2_w0375,67.40,69.07
+rf_04_leaf3_w0375,66.83,68.92
+logit_C01_w0375,66.52,69.60
+logit_C1_w0375,66.18,69.82
+mlp_128_32_w0375,66.35,69.10
+lgbm_leaf31,67.31,69.34
+lgbm_leaf15,68.02,69.49
+lgbm_rich_leaf31,67.27,69.11
+lgbm_leaf63,67.55,69.23
+lgbm_leaf31_w05,67.84,69.48

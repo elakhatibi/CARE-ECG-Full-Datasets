@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-27",
+  "pdf_pages": 43,
+  "pdf_bytes": 651475,
+  "pdf_sha256": "58c7d8e8f77168dbfd6078a8cd0b0bb7c1e8ca1075e5949c206ada402c299ff7",
+  "latex_compile": "passed",
+  "unresolved_references": false,
+  "overfull_layout_boxes": false,
+  "page_text_bounds": "passed",
+  "extracted_word_count": 17042,
+  "evidence_json": "strict parse passed",
+  "aggregate_evidence_assertions": "passed",
+  "report_builder_ruff": "passed",
+  "repository_tests": "258 collected tests; run passed",
+  "visual_review": "cover, abstract, contents, architecture, heatmaps, class results, security tables and provenance reviewed"
+}

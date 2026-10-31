@@ -64,11 +64,15 @@ attacks:
     defense_weight: 0.0
     black_box_method: nes
   f3_k2:
+    search_version: adaptive_v2
+    momentum_decay: 0.75
     diagnosis_weight: 1.0
     retrieval_weight: 1.0
     verifier_weight: 1.0
     defense_weight: 0.0
   f3_k3:
+    search_version: adaptive_v2
+    momentum_decay: 0.75
     diagnosis_weight: 1.0
     retrieval_weight: 1.0
     verifier_weight: 1.0

@@ -1,0 +1,7 @@
+{
+  "date": "2026-10-27",
+  "test_command": ".venv/bin/python -m pytest -q",
+  "test_exit_code": 0,
+  "collection_summary": "258 tests collected in 1.99s",
+  "note": "The test suite was executed successfully before collecting the count; historical experiment tests and current software validation are distinct."
+}

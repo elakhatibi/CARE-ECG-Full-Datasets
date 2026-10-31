@@ -1,5 +1,11 @@
 # Adaptive Security Evaluation
 
+The [DPO/co-evolution workflow](DPO_EVOLUTION.md) trains attacker recipe-selection
+and verifier release/reject policies through bounded fresh-rollout cycles, frozen
+references, and patient-separated validation. Run `care-ecg security-evolve` to
+create versioned candidates and validated incumbents. This is finite-action DPO;
+it does not require LLM weights.
+
 This directory contains the research proposal and the runnable CARE-ECG implementation of
 its waveform-only threat model. The implementation treats the complete waveform-callable
 internal CARE pipeline as the success oracle. Differentiable surrogates guide optimization,
@@ -22,6 +28,11 @@ but never decide whether an attack succeeded.
 | Query protocol | hard complete-system budgets and first-incorrect-release stopping |
 | Audit trail | hash-chained JSONL plus separately hashed raw-mV NPZ waveforms |
 | Statistics | patient bootstrap IRR, paired delta IRR, rounds-to-pass, coverage, and selective risk |
+
+K2/K3 now support the [feedback-adaptive v2 search](ADAPTIVE_V2.md), enabled in the
+full-patient default configuration. It adds target NLL, checkpoint step reduction,
+and feedback-conditioned restart objectives. The earlier optimizer remains available
+as `search_version: legacy`; earlier locked results are separate experiments.
 
 The public implementation lives in `src/care_ecg/security/`. Its central success predicate is:
 

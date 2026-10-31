@@ -15,6 +15,21 @@ reported with their validation and held-out measurements below. The strongest he
 remains the released three-source stack. See [`REPRODUCIBILITY.md`](REPRODUCIBILITY.md) for the
 protocol boundary and complete provenance.
 
+## Detailed methodology and experimental report
+
+The [comprehensive technical report](reports/methodology-20261028/CARE_ECG_Detailed_Methodology_and_Results.pdf)
+explains the pipeline, mathematical objectives, dataset coverage, experimental protocols,
+classification and security results, adaptive v2 search, and attacker/verifier DPO
+co-evolution. It includes patient-level uncertainty, actual training curves, promotion
+outcomes, limitations, and replay commands. Completed measurements are distinguished
+from pending full-dataset, held-out DPO, MIMIC, and QA evaluations.
+
+[Download the PDF and editable sources](reports/methodology-20261028/CARE_ECG_Report_and_Sources.zip).
+The evidence ledger, tables, figures, and rebuild instructions are in
+[`reports/methodology-20261028`](reports/methodology-20261028/README.txt).
+The [27 October historical report](reports/methodology-20261027/CARE_ECG_Detailed_Methodology_and_Results.pdf)
+is preserved separately.
+
 ## Implemented architecture
 
 The physiological stream is:
@@ -68,6 +83,13 @@ adapter is included; it explicitly disables response storage and never sends raw
 samples. Operators remain responsible for privacy, governance, and model eligibility.
 
 ## Installation
+
+Clone the complete source repository:
+
+```bash
+git clone https://github.com/elakhatibi/CARE-ECG-Full-Datasets.git
+cd CARE-ECG-Full-Datasets
+```
 
 Create an environment and install the package:
 
@@ -460,6 +482,18 @@ thresholds. Clinician grading and waveform-criterion checkers remain necessary f
 credible clinical evaluation.
 
 ## Adaptive security evaluation
+
+Both attacker and verifier now have an optional [DPO/co-evolution workflow](attack_models/DPO_EVOLUTION.md).
+It collects fresh adversarial preferences, trains finite-action policies against
+frozen references, validates each generation on separate patients, and retains only
+validated improvements. `care-ecg security-evolve` writes versioned policies and
+audited rollouts; the existing security runner can load both learned controllers.
+
+The [adaptive v2 search](attack_models/ADAPTIVE_V2.md) is enabled for K2/K3 in the
+default security configuration. It adjusts step sizes and restart objectives using
+surrogate progress and real pipeline feedback. A separate validation configuration
+compares the updated search with the other attack families under the same waveform
+and query limits; improvement is measured rather than assumed.
 
 The proposal in `attack_models/Adaptive_Security_of_CARE_ECG_Proposal.docx` is implemented
 under [`src/care_ecg/security`](src/care_ecg/security). It includes F0, F1, F1-CF, NES,

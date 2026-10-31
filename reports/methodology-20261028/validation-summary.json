@@ -1,0 +1,22 @@
+{
+  "report_date": "2026-10-28",
+  "pdf_sha256": "3196635145354a785c2757356db141f7b6231abfc83955d408fb422426a88de8",
+  "pdf_bytes": 745608,
+  "pages": 56,
+  "figures": 11,
+  "tables": 24,
+  "extracted_words": 23632,
+  "compiler": "pdflatex",
+  "unresolved_references": false,
+  "overfull_boxes": false,
+  "word_bounds_errors": [],
+  "aggregate_only_evidence_checked": true,
+  "adaptive_case_alignment_checked": true,
+  "four_dpo_losses_reconstructed": true,
+  "zero_promotions_verified": true,
+  "runtime_policy_lock_bindings_checked": true,
+  "visual_review": "All pages reviewed in contact sheets; adaptive results, DPO math, loop diagram, curves and tables also reviewed individually.",
+  "archive_files": 77,
+  "archive_bytes": 1573103,
+  "archive_sha256": "b803b140c19dce90e425e24c378c4f332d36347836ba3d7478106dc2db5e6322"
+}
